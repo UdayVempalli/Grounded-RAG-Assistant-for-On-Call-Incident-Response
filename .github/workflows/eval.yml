@@ -1,0 +1,32 @@
+name: eval-gate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - name: start qdrant
+        run: docker run -d -p 6333:6333 qdrant/qdrant:latest
+
+      - name: start ollama
+        run: |
+          docker run -d -p 11434:11434 --name ollama ollama/ollama:latest
+          sleep 10
+          docker exec ollama ollama pull llama3.2:3b
+
+      - name: ingest runbooks
+        run: python -m app.ingest
+
+      - name: run eval harness (regressions break the build)
+        run: python -m app.eval
