@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+qdrant-client
+sentence-transformers
+rank-bm25
+prometheus_client
+httpx

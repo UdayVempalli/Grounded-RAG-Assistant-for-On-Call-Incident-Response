@@ -1,0 +1,33 @@
+[
+  {
+    "question": "A pod is stuck in CrashLoopBackOff. What are the first diagnostic steps?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": ["kubectl describe", "kubectl logs", "exit code"]
+  },
+  {
+    "question": "How do I tell if high API latency is a downstream dependency problem?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": ["p99", "downstream", "trace"]
+  },
+  {
+    "question": "A node is reporting DiskPressure. What should I check before evicting pods?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": ["df", "journalctl", "disk-usage"]
+  },
+  {
+    "question": "A deployment just rolled out and error rates spiked. What's the rollback procedure?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": ["rollout undo", "revision", "roll back"]
+  },
+  {
+    "question": "How do I verify a database failover completed successfully?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": ["primary", "smoke", "replica lag"]
+  },
+  {
+    "question": "What is our vacation policy for on-call engineers?",
+    "expected_source": null,
+    "expected_keywords": [],
+    "unanswerable": true
+  }
+]
