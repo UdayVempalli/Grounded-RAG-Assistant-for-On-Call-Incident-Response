@@ -1,0 +1,35 @@
+{
+  "title": "RunbookQA",
+  "tags": ["runbookqa"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total /ask requests",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "runbookqa_ask_total", "refId": "A"}
+      ]
+    },
+    {
+      "id": 2,
+      "title": "/ask latency (p50 / p99)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(runbookqa_ask_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(runbookqa_ask_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "B"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
