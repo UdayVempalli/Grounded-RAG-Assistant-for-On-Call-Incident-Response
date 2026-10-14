@@ -14,6 +14,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: install CPU-only torch first
+        run: |
+          TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3)
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}"
+
       - run: pip install -r requirements-lock.txt
       - run: pip install -r requirements-dev.txt
 
