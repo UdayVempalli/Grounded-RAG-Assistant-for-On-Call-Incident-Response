@@ -14,14 +14,14 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements-lock.txt
       - run: pip install -r requirements-dev.txt
 
       - name: run unit + API tests
         run: python -m pytest tests/ -v
 
       - name: start qdrant
-        run: docker run -d -p 6333:6333 qdrant/qdrant:latest
+        run: docker run -d -p 6333:6333 qdrant/qdrant@sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad
 
       - name: start ollama
         run: |
