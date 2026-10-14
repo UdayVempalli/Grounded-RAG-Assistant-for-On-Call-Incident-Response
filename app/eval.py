@@ -14,8 +14,10 @@ Exit 1 if any check fails. Thresholds live here, in code, like tests.
 The judge uses the same local model with a separate judging prompt. It is a
 second layer, not a replacement for the keyword gate: keywords catch
 regressions cheaply, the judge catches fluent-but-ungrounded answers that
-keywords miss. A FAIL from the judge is verified, not trusted: it must cite the added claim in quotes, and code checks the claim is genuinely absent from the context. A stronger judge model (or an external judge) is the natural
+keywords miss. A FAIL from the judge is verified, not trusted: it must cite the added claims in quotes, and code checks every cited claim appears in both the context and the answer. A stronger judge model (or an external judge) is the natural
 next upgrade; the interface stays the same.
+
+generate() calls the production _generate() from app.main, so CI tests the exact prompt and caller /ask uses.
 
 Run:  python -m app.eval
 """
@@ -26,6 +28,7 @@ from pathlib import Path
 
 import httpx
 
+from .main import _generate as _prod_generate
 from .retrieve import retrieve
 
 GOLDEN = Path(__file__).resolve().parent.parent / "evals" / "golden.json"
@@ -55,26 +58,23 @@ REASON: one short sentence.
 
 
 def generate(question: str, chunks: list[dict]) -> str:
+    """Generate via the production code path - same prompt + caller as /ask.
+
+    The eval must test what ships. A separate eval-only prompt would let a
+    green CI hide a broken production prompt.
+    """
     context = "\n\n---\n\n".join(f"[{c['source']}]\n{c['text']}" for c in chunks)
-    prompt = (
-        "Answer using ONLY the context below. If the answer isn't in the context, "
-        f'say "I don\'t have a runbook for that." Do not invent steps.\n\n'
-        f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer:"
-    )
-    r = httpx.post(f"{OLLAMA_URL}/api/generate",
-                   json={"model": LLM_MODEL, "prompt": prompt, "stream": False,
-                         "options": {"temperature": 0}},
-                   timeout=120)
-    r.raise_for_status()
-    return r.json()["response"]
+    body = _prod_generate(question, context, "eval")
+    return body.get("response", "")
 
 
 def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
     """Ask the judge model whether `answer` is grounded in `chunks`.
 
     Returns (passed, reason). The verdict is not trusted alone: a FAIL must
-    cite the added claim in double quotes, and code checks whether that claim
-    actually appears in the context. If it does, the judge contradicted its
+    cite the added claims in double quotes, and code checks whether every
+    cited claim appears in both the context and the answer. If they do, the
+    judge contradicted its
     own evidence and the verdict is overruled to PASS (logged, not silent).
     Fails closed: an unparseable verdict is a failure.
     """
@@ -92,12 +92,16 @@ def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
         return False, f"unparseable judge output: {reason}"
     if m.group(1).upper() == "PASS":
         return True, reason
-    # FAIL: verify the cited evidence before trusting it. A FAIL must name
-    # the added claim in double quotes; if that claim actually appears in
-    # the context, the judge contradicted its own evidence.
-    q = re.search(r'"([^"]+)"', raw)
-    if q and len(q.group(1)) >= 8 and q.group(1).lower() in context.lower():
-        return True, f"judge overruled: cited addition found in context: {q.group(1)}"
+    # FAIL: verify ALL cited evidence before trusting it. A FAIL must name
+    # the added claims in double quotes. Overrule only if every cited claim
+    # appears in BOTH the context and the answer: a claim the answer never
+    # made, or one genuinely absent from the context, keeps the FAIL.
+    quotes = [q for q in re.findall(r'"([^"]+)"', raw) if len(q) >= 8]
+    if quotes and all(
+        q.lower() in context.lower() and q.lower() in answer.lower()
+        for q in quotes
+    ):
+        return True, f"judge overruled: cited additions found in context + answer: {quotes}"
     return False, reason
 
 

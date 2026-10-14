@@ -79,3 +79,24 @@ def test_judge_fail_without_quote_fails_closed(mock_post):
     )
     passed, _ = judge("q?", CHUNKS, "something")
     assert passed is False
+
+
+@patch("app.eval.httpx.post")
+def test_judge_fail_stands_when_claim_not_in_answer(mock_post):
+    # Quote is in the context but the answer never made that claim:
+    # the judge cited the wrong evidence, so FAIL stands.
+    mock_post.return_value = _mock_judge_response(
+        'VERDICT: FAIL\nREASON: The ANSWER adds a step "Roll back immediately" not in the CONTEXT.'
+    )
+    passed, _ = judge("q?", CHUNKS, "Do something else entirely.")
+    assert passed is False
+
+
+@patch("app.eval.httpx.post")
+def test_judge_fail_stands_when_any_cited_claim_absent(mock_post):
+    # One cited claim is grounded, the other is not: FAIL stands.
+    mock_post.return_value = _mock_judge_response(
+        'VERDICT: FAIL\nREASON: The ANSWER adds "Roll back immediately" and "smoke query suite".'
+    )
+    passed, _ = judge("q?", CHUNKS, "Roll back immediately and run the smoke query suite.")
+    assert passed is False
