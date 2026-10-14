@@ -71,9 +71,8 @@ def main() -> None:
     for md_file in sorted(RUNBOOK_DIR.glob("*.md")):
         source = md_file.name
         current_sources.add(source)
-        # Per-source replace: drop this file's old chunks, then upsert the new
-        # ones. An edited runbook never leaves stale chunks behind.
-        _delete_source(client, source)
+        # Upload-then-delete: upsert the new chunks first, then delete only
+        # the old IDs no longer used. Queries never see a gap for this source.
         text = md_file.read_text()
         chunks = chunk_markdown(text)
         vectors = model.encode(chunks, show_progress_bar=True)
@@ -85,9 +84,26 @@ def main() -> None:
             )
             for i, (chunk, vector) in enumerate(zip(chunks, vectors))
         ]
+        new_ids = {pt.id for pt in points}
         if points:
             client.upsert(COLLECTION, points)
         total += len(points)
+        offset = None
+        while True:
+            records, offset = client.scroll(
+                COLLECTION,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="source", match=MatchValue(value=source))]
+                ),
+                with_payload=False,
+                limit=1000,
+                offset=offset,
+            )
+            stale_ids = [r.id for r in records if r.id not in new_ids]
+            if stale_ids:
+                client.delete(COLLECTION, points_selector=stale_ids)
+            if offset is None:
+                break
 
     # Remove chunks belonging to runbooks deleted since the last ingest.
     stored_sources = set()

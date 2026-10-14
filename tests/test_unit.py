@@ -100,3 +100,19 @@ def test_judge_fail_stands_when_any_cited_claim_absent(mock_post):
     )
     passed, _ = judge("q?", CHUNKS, "Roll back immediately and run the smoke query suite.")
     assert passed is False
+
+
+@patch("app.ingest.SentenceTransformer")
+@patch("app.ingest.QdrantClient")
+def test_ingest_upserts_before_deleting_stale(mock_client_cls, mock_model_cls):
+    # Upload-then-delete: for each runbook, upsert must precede any delete
+    # of that runbook's stale chunks, so queries never see a gap.
+    from app.ingest import main as ingest_main
+
+    mock_client = mock_client_cls.return_value
+    stale = Mock(id="stale-id-1")
+    mock_client.scroll.side_effect = [([stale], None)] * 5 + [([], None)]
+    mock_model_cls.return_value.encode.return_value = [Mock(tolist=lambda: [0.1, 0.2])]
+    ingest_main()
+    calls = [c[0] for c in mock_client.method_calls]
+    assert calls.index("upsert") < calls.index("delete")
