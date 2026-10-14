@@ -7,20 +7,15 @@ edited runbooks; deleted runbooks are cleaned up.
 
 Run:  python -m app.ingest
 """
+from __future__ import annotations
+
 import os
 import uuid
 from pathlib import Path
 
-from qdrant_client import QdrantClient
-from qdrant_client.models import (
-    Distance,
-    FieldCondition,
-    Filter,
-    MatchValue,
-    PointStruct,
-    VectorParams,
-)
-from sentence_transformers import SentenceTransformer
+# Heavy imports (torch, qdrant_client) live inside the functions that use
+# them: importing this module must stay fast so tests can import the pure
+# helpers (chunk_markdown, _point_id) without loading torch.
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION = "runbooks"
@@ -45,6 +40,8 @@ def _point_id(source: str, index: int) -> str:
 
 
 def _delete_source(client: QdrantClient, source: str) -> None:
+    from qdrant_client.models import FieldCondition, Filter, MatchValue
+
     client.delete(
         COLLECTION,
         points_selector=Filter(
@@ -53,9 +50,33 @@ def _delete_source(client: QdrantClient, source: str) -> None:
     )
 
 
-def main() -> None:
-    model = SentenceTransformer(EMBED_MODEL)
-    client = QdrantClient(url=QDRANT_URL)
+def _load_model():
+    """Load the embedding model. Kept behind a helper so tests can inject
+    a mock without importing sentence_transformers (which pulls in torch)."""
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer(EMBED_MODEL)
+
+
+def _load_client():
+    """Build the Qdrant client. Same lazy-import reason as _load_model."""
+    from qdrant_client import QdrantClient
+
+    return QdrantClient(url=QDRANT_URL)
+
+
+def main(model=None, client=None) -> None:
+    from qdrant_client.models import (
+        Distance,
+        FieldCondition,
+        Filter,
+        MatchValue,
+        PointStruct,
+        VectorParams,
+    )
+
+    model = model or _load_model()
+    client = client or _load_client()
 
     # Create if missing — never wipe. Re-runs update in place.
     try:

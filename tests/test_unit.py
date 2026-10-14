@@ -102,17 +102,18 @@ def test_judge_fail_stands_when_any_cited_claim_absent(mock_post):
     assert passed is False
 
 
-@patch("app.ingest.SentenceTransformer")
-@patch("app.ingest.QdrantClient")
-def test_ingest_upserts_before_deleting_stale(mock_client_cls, mock_model_cls):
+def test_ingest_upserts_before_deleting_stale():
     # Upload-then-delete: for each runbook, upsert must precede any delete
     # of that runbook's stale chunks, so queries never see a gap.
+    # Model + client are injected (not patched): patching the source modules
+    # would import sentence_transformers, which pulls in torch (~18s).
     from app.ingest import main as ingest_main
 
-    mock_client = mock_client_cls.return_value
+    mock_client = Mock()
     stale = Mock(id="stale-id-1")
     mock_client.scroll.side_effect = [([stale], None)] * 5 + [([], None)]
-    mock_model_cls.return_value.encode.return_value = [Mock(tolist=lambda: [0.1, 0.2])]
-    ingest_main()
+    mock_model = Mock()
+    mock_model.encode.return_value = [Mock(tolist=lambda: [0.1, 0.2])]
+    ingest_main(model=mock_model, client=mock_client)
     calls = [c[0] for c in mock_client.method_calls]
     assert calls.index("upsert") < calls.index("delete")

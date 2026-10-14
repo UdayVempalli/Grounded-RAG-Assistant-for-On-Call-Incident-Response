@@ -12,9 +12,6 @@ and work offline.
 """
 import os
 
-from qdrant_client import QdrantClient
-from sentence_transformers import SentenceTransformer
-
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION = "runbooks"
 EMBED_MODEL = "all-MiniLM-L6-v2"
@@ -26,6 +23,10 @@ _client = None
 def _get_model():
     global _model
     if _model is None:
+        # Imported here, not at module top: importing sentence_transformers
+        # pulls in torch (~20s), which made every test run pay the cost.
+        from sentence_transformers import SentenceTransformer
+
         _model = SentenceTransformer(EMBED_MODEL)
     return _model
 
@@ -33,6 +34,8 @@ def _get_model():
 def _get_client():
     global _client
     if _client is None:
+        from qdrant_client import QdrantClient
+
         _client = QdrantClient(url=QDRANT_URL)
     return _client
 
