@@ -19,7 +19,6 @@ services:
       - OLLAMA_URL=http://host.docker.internal:11434
     depends_on:
       - qdrant
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   prometheus:
     image: prom/prometheus@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
@@ -33,8 +32,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:?set GRAFANA_USER in .env}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD in .env}
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
 
