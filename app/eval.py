@@ -32,8 +32,7 @@ from .main import _generate as _prod_generate
 from .retrieve import retrieve
 
 GOLDEN = Path(__file__).resolve().parent.parent / "evals" / "golden.json"
-OLLAMA_URL = "http://localhost:11434"
-LLM_MODEL = "llama3.2:3b"
+from app.main import LLM_MODEL, OLLAMA_URL  # single source of truth: eval judges with the same model generation uses
 
 JUDGE_PROMPT = """You are a strict evaluator. Decide whether the ANSWER is fully grounded in the CONTEXT.
 
