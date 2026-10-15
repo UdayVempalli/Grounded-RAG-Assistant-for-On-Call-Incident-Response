@@ -180,7 +180,7 @@
     ]
   },
   {
-    "question": "What do I do first and second when a bad deploy causes high latency?",
+    "question": "What is the mitigation when a bad deploy causes high latency?",
     "expected_source": "high-latency.md",
     "expected_keywords": [
       "roll back first",

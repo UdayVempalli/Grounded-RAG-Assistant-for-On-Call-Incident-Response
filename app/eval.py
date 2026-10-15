@@ -143,16 +143,21 @@ def main() -> None:
             failures.append(f"[{i}] retrieval miss: {item['expected_source']} not in {sources}")
             continue
 
+        # 2. unanswerable questions must refuse the way production does:
+        # retrieve() returns [] (threshold gate) and /ask refuses without
+        # a model call. Assert the empty retrieval; do not call the LLM on
+        # a path production never sends to the model.
+        if item.get("unanswerable"):
+            if chunks:
+                failures.append(
+                    f"[{i}] expected empty retrieval for unanswerable question, got {len(chunks)} chunks: {q}"
+                )
+            else:
+                print(f"[{i}] PASS (refused, empty retrieval) {q}")
+            continue
+
         answer_raw = generate(q, chunks)
         answer = answer_raw.lower()
-
-        # 2. unanswerable questions must refuse, not hallucinate
-        if item.get("unanswerable"):
-            if "don't have a runbook" not in answer and "do not have" not in answer:
-                failures.append(f"[{i}] hallucinated instead of refusing: {q}\n   ANSWER: {answer_raw}")
-            else:
-                print(f"[{i}] PASS (refused) {q}")
-            continue
 
         # 3a. groundedness, keyword gate: answer must reference at least one
         #     expected runbook term (any-match: a correct answer cites *some*
