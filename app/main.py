@@ -21,11 +21,14 @@ import hmac
 import logging
 import os
 import threading
+import json
+from pathlib import Path
 import time
 import uuid
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
@@ -83,9 +86,18 @@ Answer:"""
 
 app = FastAPI(title="RunbookQA")
 
+FEEDBACK_PATH = Path("data/feedback.jsonl")
+
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=MAX_QUESTION_CHARS)
+
+
+class FeedbackRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=MAX_QUESTION_CHARS)
+    answer: str = Field(..., min_length=1, max_length=5000)
+    helpful: bool
+    request_id: str | None = None
 
 
 @app.middleware("http")
@@ -216,6 +228,85 @@ def _generate(question: str, context: str, request_id: str) -> dict:
     raise httpx.HTTPError("Ollama unavailable after 3 attempts")
 
 
+def _notify_slack(text: str) -> None:
+    """Post to Slack if SLACK_WEBHOOK_URL is set; otherwise no-op. Never raises."""
+    url = os.environ.get("SLACK_WEBHOOK_URL", "")
+    if not url:
+        return
+    try:
+        httpx.post(url, json={"text": text}, timeout=5.0)
+    except httpx.HTTPError as e:
+        log.warning("slack notify failed: %s", e)
+
+
+@app.post("/feedback")
+def feedback(req: FeedbackRequest, request: Request, key: str = Depends(_auth_dependency)):
+    """Thumbs up/down on an answer. Appended to data/feedback.jsonl (gitignored) for golden-set review."""
+    entry = {
+        "timestamp": time.time(),
+        "question": req.question,
+        "answer": req.answer,
+        "helpful": req.helpful,
+        "request_id": req.request_id,
+    }
+    FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    log.info("request_id=%s feedback helpful=%s", req.request_id, req.helpful)
+    if not req.helpful:
+        _notify_slack(f"Thumbs down | Q: {req.question} | A: {req.answer[:200]}")
+    return {"status": "ok"}
+
+
+@app.post("/ingest")
+def ingest_endpoint(request: Request, key: str = Depends(_auth_dependency)):
+    """Re-ingest runbooks from disk (local dev: the mounted ./data/runbooks)."""
+    from app.ingest import main as ingest_main
+    from app.retrieve import _get_client, _get_model
+
+    ingest_main(model=_get_model(), client=_get_client())
+    log.info("request_id=%s ingest done", request.state.request_id)
+    return {"status": "ok"}
+
+
+def _generate_stream(question: str, context: str, request_id: str):
+    """Yield response tokens from Ollama (stream=True)."""
+    payload = {
+        "model": LLM_MODEL,
+        "prompt": PROMPT.format(context=context, question=question),
+        "stream": True,
+        "options": {"temperature": 0},
+    }
+    with httpx.stream("POST", f"{OLLAMA_URL}/api/generate", json=payload, timeout=httpx.Timeout(120.0, connect=5.0)) as resp:
+        resp.raise_for_status()
+        for line in resp.iter_lines():
+            if not line.strip():
+                continue
+            chunk = json.loads(line)
+            token = chunk.get("response", "")
+            if token:
+                yield token
+
+
+@app.post("/ask/stream")
+def ask_stream(req: AskRequest, request: Request, key: str = Depends(_auth_dependency)):
+    """Streaming /ask (SSE). Same retrieval + refusal as /ask; tokens stream as they arrive."""
+    chunks = retrieve(req.question)
+    if not chunks:
+        def _refusal():
+            yield f"data: {json.dumps({'token': REFUSAL_TEXT})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'sources': []})}\n\n"
+        return StreamingResponse(_refusal(), media_type="text/event-stream")
+    context = "\n\n".join(f"[{c['source']}]\n{c['text']}" for c in chunks)
+    sources = sorted({c["source"] for c in chunks})
+
+    def _stream():
+        for token in _generate_stream(req.question, context, request.state.request_id):
+            yield f"data: {json.dumps({'token': token})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'sources': sources})}\n\n"
+    return StreamingResponse(_stream(), media_type="text/event-stream")
+
+
 @app.post("/ask")
 def ask(
     req: AskRequest,
@@ -234,6 +325,10 @@ def ask(
         RETRIEVAL_LATENCY.labels(
             result="hit" if chunks else "miss"
         ).observe(time.time() - t0)
+        log.info(
+            "request_id=%s span=retrieve result=%s latency_ms=%.1f",
+            request_id, "hit" if chunks else "miss", (time.time() - t0) * 1000,
+        )
         if not chunks:
             # Refusal short-circuit: nothing retrieved, don't spend a model call.
             outcome = "refused"
@@ -242,7 +337,7 @@ def ask(
                 "request_id=%s outcome=refused reason=empty_retrieval",
                 request_id,
             )
-            return {"answer": REFUSAL_TEXT, "sources": []}
+            return {"answer": REFUSAL_TEXT, "sources": [], "request_id": request_id}
         context = "\n\n---\n\n".join(
             f"[{c['source']}]\n{c['text']}" for c in chunks
         )
@@ -255,6 +350,10 @@ def ask(
                 status_code=503, detail="generation service unavailable"
             )
         GENERATION_LATENCY.labels(model=LLM_MODEL).observe(time.time() - t1)
+        log.info(
+            "request_id=%s span=generate latency_ms=%.1f",
+            request_id, (time.time() - t1) * 1000,
+        )
         answer = body.get("response", "")
         if not answer:
             log.error("request_id=%s empty response from ollama", request_id)
@@ -275,7 +374,7 @@ def ask(
         log.info(
             "request_id=%s outcome=%s sources=%s", request_id, outcome, sources
         )
-        return {"answer": answer, "sources": sources}
+        return {"answer": answer, "sources": sources, "request_id": request_id}
     finally:
         ASK_LATENCY.labels(outcome=outcome).observe(time.time() - start)
         ASK_COUNT.labels(outcome=outcome, model=LLM_MODEL).inc()

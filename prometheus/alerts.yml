@@ -1,0 +1,32 @@
+groups:
+  - name: runbookqa
+    rules:
+      - alert: AskLatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(runbookqa_ask_latency_seconds_bucket[5m])) by (le)) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "/ask p95 latency above the 60s SLO"
+
+      - alert: RejectionSpike
+        expr: sum(increase(runbookqa_ask_rejected_total[10m])) > 10
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 10 /ask rejections in 10 minutes (auth or rate limit)"
+
+      - alert: RefusalSpike
+        expr: increase(runbookqa_refusals_total[1h]) > 20
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 20 refusals in an hour (corpus gap or threshold miscalibration)"
+
+      - alert: TargetDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A scrape target is down"

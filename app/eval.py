@@ -42,6 +42,12 @@ Rules:
 - FAIL only when the ANSWER adds a step, command, or fact that is not in the CONTEXT, or contradicts the CONTEXT.
 - In REASON, put the exact added or contradictory claim from the ANSWER in double quotes. If there is no added claim, write REASON: none.
 
+Rubric - check each, FAIL if any fails:
+1. Claims: every step, command, number, and fact in the ANSWER appears in the CONTEXT (paraphrase is fine).
+2. Citations: every runbook the ANSWER cites must be a source in the CONTEXT, and the cited claim must actually be in that runbook's text.
+3. Relevance: the ANSWER must directly answer the QUESTION (a grounded but off-topic answer is a FAIL).
+4. No invention: the ANSWER must not add steps, commands, or facts from outside the CONTEXT.
+
 CONTEXT:
 {context}
 

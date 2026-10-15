@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: runbookqa-api
+  labels:
+    app: runbookqa-api
+spec:
+  type: ClusterIP
+  selector:
+    app: runbookqa-api
+  ports:
+    - port: 8000
+      targetPort: 8000

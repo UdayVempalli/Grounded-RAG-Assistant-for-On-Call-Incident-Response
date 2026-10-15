@@ -56,8 +56,9 @@ def _split_words(block: str, size: int, overlap: int) -> list[str]:
 
 
 
-def chunk_markdown(text: str, size: int = 500, overlap: int = 50) -> list[str]:
+def chunk_markdown(text: str, size: int = 500, overlap: int = 50, split_on_headings: bool = True) -> list[str]:
     """Boundary-aware chunking: split on markdown headings and blank lines,
+    unless split_on_headings is False (whole document packs into chunks up to `size`).
     pack whole blocks into chunks up to `size`; a block longer than `size`
     is split at word boundaries, never mid-word. Each chunk is prefixed
     with its section heading so it stays self-contained."""
@@ -71,6 +72,12 @@ def chunk_markdown(text: str, size: int = 500, overlap: int = 50) -> list[str]:
     cur: list[tuple[str, str]] = []
     cur_len = 0
     cur_heading = ""
+    if not split_on_headings:
+        for line in text.splitlines():
+            s = line.strip()
+            if s.startswith("#"):
+                cur_heading = s
+                break
 
     def flush() -> None:
         nonlocal cur, cur_len
@@ -83,7 +90,7 @@ def chunk_markdown(text: str, size: int = 500, overlap: int = 50) -> list[str]:
         cur, cur_len = [], 0
 
     for kind, b in blocks:
-        if kind == "heading":
+        if kind == "heading" and split_on_headings:
             flush()
             cur_heading = b
             cur = [("heading", b)]
@@ -168,7 +175,9 @@ def main(model=None, client=None) -> None:
         # Upload-then-delete: upsert the new chunks first, then delete only
         # the old IDs no longer used. Queries never see a gap for this source.
         text = md_file.read_text()
-        chunks = chunk_markdown(text)
+        # size=2000: runbooks are short (21 lines), so one chunk per runbook.
+        # Keeps Symptoms + Diagnosis + Mitigation together; the model always sees the fix.
+        chunks = chunk_markdown(text, size=2000, split_on_headings=False)
         vectors = model.encode(chunks, show_progress_bar=True)
         points = [
             PointStruct(

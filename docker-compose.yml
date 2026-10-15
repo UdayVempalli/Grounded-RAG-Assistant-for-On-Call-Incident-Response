@@ -9,6 +9,8 @@ services:
 
   api:
     build: .
+    volumes:
+      - ./data/runbooks:/code/data/runbooks:ro
     env_file:
       - path: .env
         required: false
@@ -27,6 +29,11 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --rule.file=/etc/prometheus/alerts.yml
 
   grafana:
     image: grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572

@@ -510,5 +510,565 @@
       "pg_terminate_backend",
       "blocking"
     ]
+  },
+  {
+    "question": "How do I tell if a pod is in ImagePullBackOff?",
+    "expected_source": "k8s-image-pull.md",
+    "expected_keywords": [
+      "ImagePullBackOff",
+      "kubectl get pods"
+    ]
+  },
+  {
+    "question": "What does it mean if a pod has zero restarts and never reaches Running?",
+    "expected_source": "k8s-image-pull.md",
+    "expected_keywords": [
+      "ImagePullBackOff",
+      "zero restarts"
+    ]
+  },
+  {
+    "question": "How do I check for a typo in the image name?",
+    "expected_source": "k8s-image-pull.md",
+    "expected_keywords": [
+      "describe pod",
+      "image"
+    ]
+  },
+  {
+    "question": "How do I create an image pull secret?",
+    "expected_source": "k8s-image-pull.md",
+    "expected_keywords": [
+      "docker-registry",
+      "create secret"
+    ]
+  },
+  {
+    "question": "What do I do if the image registry is down?",
+    "expected_source": "k8s-image-pull.md",
+    "expected_keywords": [
+      "registry",
+      "wait"
+    ]
+  },
+  {
+    "question": "What does a 504 Gateway Timeout mean?",
+    "expected_source": "api-timeout.md",
+    "expected_keywords": [
+      "504",
+      "Gateway Timeout"
+    ]
+  },
+  {
+    "question": "How do I check if the upstream is slower than the client timeout?",
+    "expected_source": "api-timeout.md",
+    "expected_keywords": [
+      "timeout budget",
+      "time_total"
+    ]
+  },
+  {
+    "question": "How do I check if connection pooling is causing timeouts?",
+    "expected_source": "api-timeout.md",
+    "expected_keywords": [
+      "connection pool",
+      "ESTABLISHED"
+    ]
+  },
+  {
+    "question": "What is a retry storm and how do I stop it?",
+    "expected_source": "api-timeout.md",
+    "expected_keywords": [
+      "retry storm",
+      "backoff"
+    ]
+  },
+  {
+    "question": "What is a circuit breaker and when do I add one?",
+    "expected_source": "api-timeout.md",
+    "expected_keywords": [
+      "circuit breaker",
+      "failing downstream"
+    ]
+  },
+  {
+    "question": "How do I tell if a crash was caused by a config change?",
+    "expected_source": "deploy-config.md",
+    "expected_keywords": [
+      "config change",
+      "no code deploy"
+    ]
+  },
+  {
+    "question": "How do I diff a ConfigMap against the last known good version?",
+    "expected_source": "deploy-config.md",
+    "expected_keywords": [
+      "configmap",
+      "last known good"
+    ]
+  },
+  {
+    "question": "How do I check for a missing key in a ConfigMap?",
+    "expected_source": "deploy-config.md",
+    "expected_keywords": [
+      "describe configmap",
+      "missing key"
+    ]
+  },
+  {
+    "question": "How do I check if a rotated secret is causing a config error?",
+    "expected_source": "deploy-config.md",
+    "expected_keywords": [
+      "secret",
+      "rotated"
+    ]
+  },
+  {
+    "question": "What should I validate before applying a ConfigMap?",
+    "expected_source": "deploy-config.md",
+    "expected_keywords": [
+      "schema check",
+      "unknown keys"
+    ]
+  },
+  {
+    "question": "How do I tell if a pod is stuck in Pending?",
+    "expected_source": "k8s-pending.md",
+    "expected_keywords": [
+      "Pending",
+      "kubectl get pods"
+    ]
+  },
+  {
+    "question": "What does '0/3 nodes are available' mean?",
+    "expected_source": "k8s-pending.md",
+    "expected_keywords": [
+      "nodes are available",
+      "Insufficient"
+    ]
+  },
+  {
+    "question": "How do I check why a pod was not scheduled?",
+    "expected_source": "k8s-pending.md",
+    "expected_keywords": [
+      "describe pod",
+      "Events"
+    ]
+  },
+  {
+    "question": "What is a taint mismatch and how do I fix it?",
+    "expected_source": "k8s-pending.md",
+    "expected_keywords": [
+      "taint",
+      "toleration"
+    ]
+  },
+  {
+    "question": "What do I do if a PVC is stuck in Pending?",
+    "expected_source": "k8s-pending.md",
+    "expected_keywords": [
+      "Pending PVC",
+      "StorageClass"
+    ]
+  },
+  {
+    "question": "How do I tell if a pod is being CPU-throttled?",
+    "expected_source": "k8s-cpu-throttle.md",
+    "expected_keywords": [
+      "throttled",
+      "nr_throttled"
+    ]
+  },
+  {
+    "question": "What is the difference between CPU requests and limits?",
+    "expected_source": "k8s-cpu-throttle.md",
+    "expected_keywords": [
+      "requests.cpu",
+      "limits.cpu"
+    ]
+  },
+  {
+    "question": "How do I check the CPU limit on a pod?",
+    "expected_source": "k8s-cpu-throttle.md",
+    "expected_keywords": [
+      "describe pod",
+      "limits.cpu"
+    ]
+  },
+  {
+    "question": "What does a flat-topped CPU graph mean?",
+    "expected_source": "k8s-cpu-throttle.md",
+    "expected_keywords": [
+      "flat-topped",
+      "throttling"
+    ]
+  },
+  {
+    "question": "Should I remove the CPU limit on a latency-critical pod?",
+    "expected_source": "k8s-cpu-throttle.md",
+    "expected_keywords": [
+      "remove the limit",
+      "starve"
+    ]
+  },
+  {
+    "question": "What does 'too many clients already' mean?",
+    "expected_source": "db-connection-pool.md",
+    "expected_keywords": [
+      "too many clients",
+      "max_connections"
+    ]
+  },
+  {
+    "question": "How do I check how many database connections are open?",
+    "expected_source": "db-connection-pool.md",
+    "expected_keywords": [
+      "pg_stat_activity",
+      "count"
+    ]
+  },
+  {
+    "question": "How do I find idle connections leaking from the pool?",
+    "expected_source": "db-connection-pool.md",
+    "expected_keywords": [
+      "idle",
+      "leak"
+    ]
+  },
+  {
+    "question": "What is 'idle in transaction' and how do I fix it?",
+    "expected_source": "db-connection-pool.md",
+    "expected_keywords": [
+      "idle in transaction",
+      "pg_terminate_backend"
+    ]
+  },
+  {
+    "question": "What is PgBouncer and when do I add it?",
+    "expected_source": "db-connection-pool.md",
+    "expected_keywords": [
+      "PgBouncer",
+      "multiplex"
+    ]
+  },
+  {
+    "question": "How do I tell if a DNS failure is the problem?",
+    "expected_source": "dns-failure.md",
+    "expected_keywords": [
+      "getaddrinfo",
+      "ENOTFOUND"
+    ]
+  },
+  {
+    "question": "How do I test DNS from inside a pod?",
+    "expected_source": "dns-failure.md",
+    "expected_keywords": [
+      "nslookup",
+      "kubernetes.default"
+    ]
+  },
+  {
+    "question": "How do I check the pod's DNS config?",
+    "expected_source": "dns-failure.md",
+    "expected_keywords": [
+      "resolv.conf",
+      "nameserver"
+    ]
+  },
+  {
+    "question": "How do I check if CoreDNS is down?",
+    "expected_source": "dns-failure.md",
+    "expected_keywords": [
+      "CoreDNS",
+      "kube-dns"
+    ]
+  },
+  {
+    "question": "How do I restart CoreDNS?",
+    "expected_source": "dns-failure.md",
+    "expected_keywords": [
+      "rollout restart",
+      "coredns"
+    ]
+  },
+  {
+    "question": "How do I check if a Service has endpoints?",
+    "expected_source": "k8s-service-down.md",
+    "expected_keywords": [
+      "endpoints",
+      "kubectl get endpoints"
+    ]
+  },
+  {
+    "question": "What does it mean if a Service has no endpoints?",
+    "expected_source": "k8s-service-down.md",
+    "expected_keywords": [
+      "no endpoints",
+      "selector"
+    ]
+  },
+  {
+    "question": "How do I check if the Service selector matches the pod labels?",
+    "expected_source": "k8s-service-down.md",
+    "expected_keywords": [
+      "selector",
+      "labels"
+    ]
+  },
+  {
+    "question": "How do I check if the Service port matches the pod port?",
+    "expected_source": "k8s-service-down.md",
+    "expected_keywords": [
+      "targetPort",
+      "containerPort"
+    ]
+  },
+  {
+    "question": "What do I do if a Service is in the wrong namespace?",
+    "expected_source": "k8s-service-down.md",
+    "expected_keywords": [
+      "namespace",
+      "wrong namespace"
+    ]
+  },
+  {
+    "question": "What does a 502 Bad Gateway from the ingress mean?",
+    "expected_source": "ingress-502.md",
+    "expected_keywords": [
+      "502",
+      "Bad Gateway"
+    ]
+  },
+  {
+    "question": "How do I check the ingress backend?",
+    "expected_source": "ingress-502.md",
+    "expected_keywords": [
+      "describe ingress",
+      "backend"
+    ]
+  },
+  {
+    "question": "How do I check if the pod is Ready behind an ingress?",
+    "expected_source": "ingress-502.md",
+    "expected_keywords": [
+      "Ready",
+      "kubectl get pods"
+    ]
+  },
+  {
+    "question": "How do I check the ingress controller logs?",
+    "expected_source": "ingress-502.md",
+    "expected_keywords": [
+      "ingress-nginx",
+      "logs"
+    ]
+  },
+  {
+    "question": "What is ingressClassName and why does it matter?",
+    "expected_source": "ingress-502.md",
+    "expected_keywords": [
+      "ingressClassName",
+      "controller"
+    ]
+  },
+  {
+    "question": "How do I check how long a pod took to become Ready?",
+    "expected_source": "slow-startup.md",
+    "expected_keywords": [
+      "Started",
+      "Ready"
+    ]
+  },
+  {
+    "question": "What is a startup probe?",
+    "expected_source": "slow-startup.md",
+    "expected_keywords": [
+      "startupProbe",
+      "warm up"
+    ]
+  },
+  {
+    "question": "How do I check if the init container is slow?",
+    "expected_source": "slow-startup.md",
+    "expected_keywords": [
+      "init container",
+      "logs"
+    ]
+  },
+  {
+    "question": "What is initialDelaySeconds for?",
+    "expected_source": "slow-startup.md",
+    "expected_keywords": [
+      "initialDelaySeconds",
+      "readiness"
+    ]
+  },
+  {
+    "question": "How do I pre-pull images onto nodes?",
+    "expected_source": "slow-startup.md",
+    "expected_keywords": [
+      "pre-pull",
+      "DaemonSet"
+    ]
+  },
+  {
+    "question": "How do I tell if a pod has a memory leak?",
+    "expected_source": "memory-leak.md",
+    "expected_keywords": [
+      "grows steadily",
+      "never drops"
+    ]
+  },
+  {
+    "question": "How do I check the heap for a memory leak?",
+    "expected_source": "memory-leak.md",
+    "expected_keywords": [
+      "heap",
+      "pprof"
+    ]
+  },
+  {
+    "question": "What is an unbounded cache and why does it leak?",
+    "expected_source": "memory-leak.md",
+    "expected_keywords": [
+      "unbounded",
+      "cache"
+    ]
+  },
+  {
+    "question": "How do I cap a cache to stop a leak?",
+    "expected_source": "memory-leak.md",
+    "expected_keywords": [
+      "max size",
+      "TTL"
+    ]
+  },
+  {
+    "question": "Should I restart a pod with a memory leak?",
+    "expected_source": "memory-leak.md",
+    "expected_keywords": [
+      "stopgap",
+      "buys time"
+    ]
+  },
+  {
+    "question": "How do I tell if a NetworkPolicy is blocking traffic?",
+    "expected_source": "network-policy.md",
+    "expected_keywords": [
+      "NetworkPolicy",
+      "blocking"
+    ]
+  },
+  {
+    "question": "How do I list NetworkPolicies?",
+    "expected_source": "network-policy.md",
+    "expected_keywords": [
+      "get networkpolicy",
+      "list"
+    ]
+  },
+  {
+    "question": "How do I check what a NetworkPolicy allows?",
+    "expected_source": "network-policy.md",
+    "expected_keywords": [
+      "describe networkpolicy",
+      "ingress"
+    ]
+  },
+  {
+    "question": "What is a default deny NetworkPolicy?",
+    "expected_source": "network-policy.md",
+    "expected_keywords": [
+      "default deny",
+      "denies all"
+    ]
+  },
+  {
+    "question": "How do I test if a NetworkPolicy is the cause?",
+    "expected_source": "network-policy.md",
+    "expected_keywords": [
+      "remove the policy",
+      "test"
+    ]
+  },
+  {
+    "question": "How do I tell if a node is NotReady?",
+    "expected_source": "node-not-ready.md",
+    "expected_keywords": [
+      "NotReady",
+      "kubectl get nodes"
+    ]
+  },
+  {
+    "question": "How do I check why a node is NotReady?",
+    "expected_source": "node-not-ready.md",
+    "expected_keywords": [
+      "describe node",
+      "Conditions"
+    ]
+  },
+  {
+    "question": "How do I check if the kubelet is running?",
+    "expected_source": "node-not-ready.md",
+    "expected_keywords": [
+      "kubelet",
+      "systemctl"
+    ]
+  },
+  {
+    "question": "How do I restart the kubelet?",
+    "expected_source": "node-not-ready.md",
+    "expected_keywords": [
+      "restart kubelet",
+      "systemctl restart"
+    ]
+  },
+  {
+    "question": "How do I cordon and drain a node that will not recover?",
+    "expected_source": "node-not-ready.md",
+    "expected_keywords": [
+      "cordon",
+      "drain"
+    ]
+  },
+  {
+    "question": "What does a 429 Too Many Requests mean?",
+    "expected_source": "rate-limit.md",
+    "expected_keywords": [
+      "429",
+      "Too Many Requests"
+    ]
+  },
+  {
+    "question": "How do I read the Retry-After header?",
+    "expected_source": "rate-limit.md",
+    "expected_keywords": [
+      "Retry-After",
+      "curl -i"
+    ]
+  },
+  {
+    "question": "What is the difference between 429 and 503?",
+    "expected_source": "rate-limit.md",
+    "expected_keywords": [
+      "429",
+      "503"
+    ]
+  },
+  {
+    "question": "Should I raise the rate limit?",
+    "expected_source": "rate-limit.md",
+    "expected_keywords": [
+      "raise the limit",
+      "backend"
+    ]
+  },
+  {
+    "question": "How do I add client-side throttling?",
+    "expected_source": "rate-limit.md",
+    "expected_keywords": [
+      "client-side",
+      "throttling"
+    ]
   }
 ]

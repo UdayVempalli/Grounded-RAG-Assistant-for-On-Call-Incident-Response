@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runbookqa-api
+  labels:
+    app: runbookqa-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: runbookqa-api
+  template:
+    metadata:
+      labels:
+        app: runbookqa-api
+    spec:
+      containers:
+        - name: api
+          image: runbookqa-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: QDRANT_URL
+              value: http://qdrant:6333
+            - name: OLLAMA_URL
+              value: http://ollama:11434
+            - name: RUNBOOKQA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: runbookqa-secret
+                  key: RUNBOOKQA_API_KEY
+            - name: RUNBOOKQA_RATE_LIMIT
+              value: "10"
+            - name: RUNBOOKQA_RATE_WINDOW_S
+              value: "60"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
