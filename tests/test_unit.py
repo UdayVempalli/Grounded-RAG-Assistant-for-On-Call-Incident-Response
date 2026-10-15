@@ -10,10 +10,37 @@ from app.eval import judge
 from app.ingest import _point_id, chunk_markdown
 
 
-def test_chunk_markdown_splits_with_overlap():
-    assert chunk_markdown("abcdefghij", size=4, overlap=1) == [
-        "abcd", "defg", "ghij", "j",
+def test_chunk_markdown_never_splits_mid_word():
+    # A spaceless string is one word: kept whole, never dropped or split.
+    assert chunk_markdown("abcdefghij", size=4, overlap=1) == ["abcdefghij"]
+    # A long block splits at word boundaries, never mid-word.
+    assert chunk_markdown("aaa bbb ccc", size=5, overlap=1) == ["aaa", "bbb", "ccc"]
+
+
+def test_chunk_markdown_heading_sections():
+    assert chunk_markdown("## A\n\nhello\n\n## B\n\nworld") == [
+        "## A\nhello",
+        "## B\nworld",
     ]
+
+
+def test_chunk_markdown_heading_prepended():
+    # Chunks starting mid-section carry their section heading.
+    assert chunk_markdown("## Sec\n\nhello\nworld\nfoo\nbar", size=12, overlap=0) == [
+        "## Sec\nhello",
+        "## Sec\nworld\nfoo",
+        "## Sec\nbar",
+    ]
+
+
+def test_chunk_markdown_oversized_block():
+    # One long line splits at word boundaries; no bare-heading chunk.
+    assert chunk_markdown("## Sec\n\nhello world foo bar", size=12, overlap=0) == [
+        "## Sec\nhello world",
+        "## Sec\nfoo bar",
+    ]
+
+
 
 
 def test_chunk_markdown_empty_and_blank():

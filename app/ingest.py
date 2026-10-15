@@ -24,13 +24,86 @@ EMBED_MODEL = "all-MiniLM-L6-v2"  # 384-dim, fast, free, local
 RUNBOOK_DIR = Path(__file__).resolve().parent.parent / "data" / "runbooks"
 
 
+def _split_words(block: str, size: int, overlap: int) -> list[str]:
+    """Split one oversized block at word boundaries, never mid-word.
+
+    A single word longer than `size` is kept whole, never split or dropped.
+    Overlap is word-level: the next window starts `overlap` chars before
+    the cut, snapped forward to a word start.
+    """
+    parts, start = [], 0
+    n = len(block)
+    while start < n:
+        if n - start <= size:
+            parts.append(block[start:].strip())
+            break
+        end = start + size
+        space = block.rfind(" ", start, end)
+        if space > start:
+            parts.append(block[start:space].strip())
+            nxt_start = max(space - overlap, start + 1)
+            s = block.find(" ", nxt_start, space)
+            start = s + 1 if s != -1 else space + 1
+            continue
+        nxt = block.find(" ", start)
+        if nxt == -1:
+            parts.append(block[start:].strip())
+            break
+        parts.append(block[start:nxt].strip())
+        start = nxt + 1
+    return [p for p in parts if p]
+
+
+
+
 def chunk_markdown(text: str, size: int = 500, overlap: int = 50) -> list[str]:
-    """Fixed-size char chunking. TODO: compare against section-aware chunking
-    (split on ## headers) and keep the winner — measure with eval.py."""
-    chunks, start = [], 0
-    while start < len(text):
-        chunks.append(text[start:start + size])
-        start += size - overlap
+    """Boundary-aware chunking: split on markdown headings and blank lines,
+    pack whole blocks into chunks up to `size`; a block longer than `size`
+    is split at word boundaries, never mid-word. Each chunk is prefixed
+    with its section heading so it stays self-contained."""
+    blocks = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        blocks.append(("heading" if s.startswith("#") else "para", s))
+    chunks: list[str] = []
+    cur: list[tuple[str, str]] = []
+    cur_len = 0
+    cur_heading = ""
+
+    def flush() -> None:
+        nonlocal cur, cur_len
+        if not cur:
+            return
+        body = "\n".join(b for _, b in cur)
+        if cur_heading and not cur[0][1].startswith("#"):
+            body = cur_heading + "\n" + body
+        chunks.append(body)
+        cur, cur_len = [], 0
+
+    for kind, b in blocks:
+        if kind == "heading":
+            flush()
+            cur_heading = b
+            cur = [("heading", b)]
+            cur_len = len(b)
+            continue
+        if len(b) > size:
+            # If the current chunk is just the section heading, drop it
+            # without emitting: the heading is prepended to the pieces.
+            if len(cur) == 1 and cur[0][0] == "heading":
+                cur, cur_len = [], 0
+            else:
+                flush()
+            for piece in _split_words(b, size, overlap):
+                chunks.append(cur_heading + "\n" + piece if cur_heading else piece)
+            continue
+        if cur and cur_len + 1 + len(b) > size:
+            flush()
+        cur.append((kind, b))
+        cur_len += 1 + len(b)
+    flush()
     return [c.strip() for c in chunks if c.strip()]
 
 
