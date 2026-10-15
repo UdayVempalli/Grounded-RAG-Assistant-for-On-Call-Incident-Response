@@ -230,3 +230,7 @@ def test_normalize_quote_strips_articles():
     assert _normalize_quote("A cache stampede") == "cache stampede"
     assert _normalize_quote("the `kubectl drain`") == "`kubectl drain`"
     assert _normalize_quote("use a cache stampede") == "cache stampede"
+
+def test_normalize_quote_strips_check_for():
+    assert _normalize_quote("Check for panics, config errors, or failed migrations") == "panics, config errors, or failed migrations"
+    assert _normalize_quote("Verify the pod is Running") == "pod is running"

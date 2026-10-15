@@ -67,27 +67,34 @@ def generate(question: str, chunks: list[dict]) -> str:
     return body.get("response", "")
 
 
-_FILLER_PREFIXES = ("use ", "run ", "execute ", "do ", "call ", "a ", "an ", "the ")
+_FILLER_WORDS = {
+    # Articles / prepositions the judge adds when quoting a claim.
+    "a", "an", "the", "for", "to",
+    # Imperative verbs the judge adds ("Check for panics..." vs runbook "panics...").
+    "use", "using", "run", "running", "execute", "do", "call",
+    "check", "verify", "ensure", "confirm", "inspect", "review",
+    "examine", "look", "monitor", "make", "take", "get", "set",
+    "start", "begin", "try",
+}
 
 
 def _normalize_quote(q: str) -> str:
     """Strip leading filler words from a judge-cited quote.
 
-    The judge quotes the answer's claim, often with a filler verb
-    ("use `kubectl drain ...`") or article ("A cache stampede") that the
-    runbook text does not have. The evidence check compares the core claim,
-    not the filler. Strips repeatedly ("use a ..." -> core).
+    The judge quotes the answer's claim, often with leading filler
+    ("use `kubectl drain ...`", "A cache stampede", "Check for panics...")
+    that the runbook text does not have. The evidence check compares the
+    core claim, not the filler. Drops leading words while each is a filler
+    word; stops at the first non-filler word so the core is kept.
     """
-    s = q.strip().lower()
-    changed = True
-    while changed:
-        changed = False
-        for prefix in _FILLER_PREFIXES:
-            if s.startswith(prefix):
-                s = s[len(prefix):].strip()
-                changed = True
-                break
-    return s
+    words = q.strip().split()
+    while words:
+        first = words[0].strip("`\"'.,;:!?()[]{}").lower()
+        if first in _FILLER_WORDS:
+            words = words[1:]
+        else:
+            break
+    return " ".join(words).lower()
 
 
 def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
