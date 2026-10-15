@@ -4,8 +4,11 @@ on:
   push:
   pull_request:
 
+# Two parallel jobs: test gives the fast pytest signal, eval is the slow gate.
+# The eval is CPU-bound (Ollama), so it stays ~18 min; the split means pytest
+# no longer waits behind it.
 jobs:
-  eval:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +27,22 @@ jobs:
 
       - name: run unit + API tests
         run: python -m pytest tests/ -v
+
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: install CPU-only torch first
+        run: |
+          TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3)
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}"
+
+      - run: pip install -r requirements-lock.txt
 
       - name: start qdrant
         run: docker run -d -p 6333:6333 qdrant/qdrant@sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad
