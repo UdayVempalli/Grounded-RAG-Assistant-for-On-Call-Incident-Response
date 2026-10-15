@@ -224,3 +224,9 @@ def test_retrieve_above_threshold_returns_chunks():
     ):
         result = retrieve("How do I free disk?")
     assert len(result) == 1 and result[0]["source"] == "disk-pressure.md"
+
+
+def test_normalize_quote_strips_articles():
+    assert _normalize_quote("A cache stampede") == "cache stampede"
+    assert _normalize_quote("the `kubectl drain`") == "`kubectl drain`"
+    assert _normalize_quote("use a cache stampede") == "cache stampede"

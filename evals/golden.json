@@ -184,7 +184,8 @@
     "expected_source": "high-latency.md",
     "expected_keywords": [
       "roll back first",
-      "investigate second"
+      "investigate second",
+      "roll back immediately"
     ]
   },
   {

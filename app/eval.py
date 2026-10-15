@@ -67,20 +67,26 @@ def generate(question: str, chunks: list[dict]) -> str:
     return body.get("response", "")
 
 
-_FILLER_PREFIXES = ("use ", "run ", "execute ", "do ", "call ")
+_FILLER_PREFIXES = ("use ", "run ", "execute ", "do ", "call ", "a ", "an ", "the ")
 
 
 def _normalize_quote(q: str) -> str:
-    """Strip a leading filler verb from a judge-cited quote.
+    """Strip leading filler words from a judge-cited quote.
 
     The judge quotes the answer's claim, often with a filler verb
-    ("use `kubectl drain ...`") that the runbook text does not have.
-    The evidence check compares the core claim, not the filler.
+    ("use `kubectl drain ...`") or article ("A cache stampede") that the
+    runbook text does not have. The evidence check compares the core claim,
+    not the filler. Strips repeatedly ("use a ..." -> core).
     """
     s = q.strip().lower()
-    for prefix in _FILLER_PREFIXES:
-        if s.startswith(prefix):
-            return s[len(prefix):].strip()
+    changed = True
+    while changed:
+        changed = False
+        for prefix in _FILLER_PREFIXES:
+            if s.startswith(prefix):
+                s = s[len(prefix):].strip()
+                changed = True
+                break
     return s
 
 
