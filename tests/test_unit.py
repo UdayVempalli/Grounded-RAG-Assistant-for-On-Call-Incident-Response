@@ -6,7 +6,7 @@ Run:  python -m pytest tests/ -v
 import uuid
 from unittest.mock import Mock, patch
 
-from app.eval import judge
+from app.eval import _normalize_quote, judge
 from app.ingest import _point_id, chunk_markdown
 
 
@@ -144,3 +144,9 @@ def test_ingest_upserts_before_deleting_stale():
     ingest_main(model=mock_model, client=mock_client)
     calls = [c[0] for c in mock_client.method_calls]
     assert calls.index("upsert") < calls.index("delete")
+
+
+def test_normalize_quote_strips_filler_verb():
+    assert _normalize_quote("use `kubectl drain <node>`") == "`kubectl drain <node>`"
+    assert _normalize_quote("`kubectl get pods`") == "`kubectl get pods`"
+    assert _normalize_quote("Run `kubectl get pods`") == "`kubectl get pods`"

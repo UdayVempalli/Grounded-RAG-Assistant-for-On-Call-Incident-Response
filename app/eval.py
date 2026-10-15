@@ -67,6 +67,23 @@ def generate(question: str, chunks: list[dict]) -> str:
     return body.get("response", "")
 
 
+_FILLER_PREFIXES = ("use ", "run ", "execute ", "do ", "call ")
+
+
+def _normalize_quote(q: str) -> str:
+    """Strip a leading filler verb from a judge-cited quote.
+
+    The judge quotes the answer's claim, often with a filler verb
+    ("use `kubectl drain ...`") that the runbook text does not have.
+    The evidence check compares the core claim, not the filler.
+    """
+    s = q.strip().lower()
+    for prefix in _FILLER_PREFIXES:
+        if s.startswith(prefix):
+            return s[len(prefix):].strip()
+    return s
+
+
 def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
     """Ask the judge model whether `answer` is grounded in `chunks`.
 
@@ -97,7 +114,9 @@ def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
     # made, or one genuinely absent from the context, keeps the FAIL.
     quotes = [q for q in re.findall(r'"([^"]+)"', raw) if len(q) >= 8]
     if quotes and all(
-        q.lower() in context.lower() and q.lower() in answer.lower()
+        len(_normalize_quote(q)) >= 8
+        and _normalize_quote(q) in context.lower()
+        and _normalize_quote(q) in answer.lower()
         for q in quotes
     ):
         return True, f"judge overruled: cited additions found in context + answer: {quotes}"

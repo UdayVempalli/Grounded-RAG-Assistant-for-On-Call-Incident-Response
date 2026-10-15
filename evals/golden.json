@@ -119,7 +119,7 @@
     ]
   },
   {
-    "question": "What is the first command to confirm a pod is in CrashLoopBackOff?",
+    "question": "What command shows a pod is in CrashLoopBackOff?",
     "expected_source": "k8s-crashloop.md",
     "expected_keywords": [
       "kubectl get pods",
@@ -180,7 +180,7 @@
     ]
   },
   {
-    "question": "What is the mitigation when a bad deploy causes high latency?",
+    "question": "What do I do first and second when a bad deploy causes high latency?",
     "expected_source": "high-latency.md",
     "expected_keywords": [
       "roll back first",
@@ -331,7 +331,7 @@
     ]
   },
   {
-    "question": "What should I do about further deploys of a service after a bad rollout?",
+    "question": "Should I freeze further deploys of a service after a bad rollout?",
     "expected_source": "failed-deploy.md",
     "expected_keywords": [
       "freeze",
