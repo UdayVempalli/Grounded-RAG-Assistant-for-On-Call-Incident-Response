@@ -2,30 +2,470 @@
   {
     "question": "A pod is stuck in CrashLoopBackOff. What are the first diagnostic steps?",
     "expected_source": "k8s-crashloop.md",
-    "expected_keywords": ["kubectl describe", "kubectl logs", "exit code"]
+    "expected_keywords": [
+      "kubectl describe",
+      "kubectl logs",
+      "exit code"
+    ]
   },
   {
     "question": "How do I tell if high API latency is a downstream dependency problem?",
     "expected_source": "high-latency.md",
-    "expected_keywords": ["p99", "downstream", "trace"]
+    "expected_keywords": [
+      "p99",
+      "downstream",
+      "trace"
+    ]
   },
   {
     "question": "A node is reporting DiskPressure. What should I check before evicting pods?",
     "expected_source": "disk-pressure.md",
-    "expected_keywords": ["df", "journalctl", "disk-usage"]
+    "expected_keywords": [
+      "df",
+      "journalctl",
+      "disk-usage"
+    ]
   },
   {
     "question": "A deployment just rolled out and error rates spiked. What's the rollback procedure?",
     "expected_source": "failed-deploy.md",
-    "expected_keywords": ["rollout undo", "revision", "roll back"]
+    "expected_keywords": [
+      "rollout undo",
+      "revision",
+      "roll back"
+    ]
   },
   {
     "question": "How do I verify a database failover completed successfully?",
     "expected_source": "db-failover.md",
-    "expected_keywords": ["primary", "smoke", "replica lag"]
+    "expected_keywords": [
+      "primary",
+      "smoke",
+      "replica lag"
+    ]
   },
   {
     "question": "What is our vacation policy for on-call engineers?",
+    "expected_source": null,
+    "expected_keywords": [],
+    "unanswerable": true
+  },
+  {
+    "question": "A pod shows OOMKilled. What does that mean and what should I check first?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "OOMKilled",
+      "exit 137",
+      "memory limit"
+    ]
+  },
+  {
+    "question": "How do I read logs from a crashed container instead of the fresh one?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "--previous",
+      "kubectl logs",
+      "crashed"
+    ]
+  },
+  {
+    "question": "A pod started crashlooping after a config change. How do I confirm the change caused it?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "rollout history",
+      "config"
+    ]
+  },
+  {
+    "question": "What is the mitigation for a pod crashing because of a bad image or config?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "rollout undo",
+      "last known-good"
+    ]
+  },
+  {
+    "question": "A pod is OOMKilled. What is the mitigation before profiling the app?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "raise the memory limit",
+      "profile",
+      "leak"
+    ]
+  },
+  {
+    "question": "Why should I not just raise restart counts for a CrashLoopBackOff pod?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "exit reason",
+      "restart counts"
+    ]
+  },
+  {
+    "question": "When should I page the service owner for a CrashLoopBackOff pod?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "critical path",
+      "15 minutes",
+      "service owner"
+    ]
+  },
+  {
+    "question": "How do I check whether a crashing pod exceeded its memory limit?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "kubectl top",
+      "deployment spec"
+    ]
+  },
+  {
+    "question": "What is the first command to confirm a pod is in CrashLoopBackOff?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": [
+      "kubectl get pods",
+      "CrashLoopBackOff"
+    ]
+  },
+  {
+    "question": "What SLO does the high latency runbook use for p99?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "500ms",
+      "p99",
+      "SLO"
+    ]
+  },
+  {
+    "question": "How do I tell whether a latency spike is p50 or only p99, and what does p99-only mean?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "Grafana",
+      "p99-only",
+      "downstream"
+    ]
+  },
+  {
+    "question": "What should I check if the downstream database is slow during a latency spike?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "missing indexes",
+      "connection pool",
+      "replica lag"
+    ]
+  },
+  {
+    "question": "What is a cache stampede and how do I mitigate it?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "cache hit ratio",
+      "warm the cache",
+      "stampede"
+    ]
+  },
+  {
+    "question": "How do I find which part of a slow request dominates latency?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "distributed trace",
+      "span",
+      "slow request"
+    ]
+  },
+  {
+    "question": "How do I check whether a latency spike correlates with a deploy?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "release boundary",
+      "deploy"
+    ]
+  },
+  {
+    "question": "What is the mitigation when a bad deploy causes high latency?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "roll back first",
+      "investigate second"
+    ]
+  },
+  {
+    "question": "When should I page the on-call lead for high API latency?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "10 minutes",
+      "on-call lead",
+      "SLO"
+    ]
+  },
+  {
+    "question": "What alerts fire when API latency is high?",
+    "expected_source": "high-latency.md",
+    "expected_keywords": [
+      "burn-rate",
+      "latency",
+      "alerts"
+    ]
+  },
+  {
+    "question": "What does the DiskPressure condition mean for pods on the node?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "kubelet",
+      "evicting",
+      "DiskPressure"
+    ]
+  },
+  {
+    "question": "Which filesystems are usually full when a node hits DiskPressure?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "/var/lib/docker",
+      "/var/log",
+      "df -h"
+    ]
+  },
+  {
+    "question": "What is the most common cause of DiskPressure according to the runbook?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "runaway logging",
+      "journalctl",
+      "disk-usage"
+    ]
+  },
+  {
+    "question": "How do I check for unrotated container logs and dangling images?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "docker system df",
+      "dangling images",
+      "container logs"
+    ]
+  },
+  {
+    "question": "How do I free disk by vacuuming the journal?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "vacuum-size=500M",
+      "journalctl",
+      "journal"
+    ]
+  },
+  {
+    "question": "How do I prune unused images on a DiskPressure node?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "crictl rmi --prune",
+      "prune",
+      "unused images"
+    ]
+  },
+  {
+    "question": "Why should I not prune images on a node running critical singletons without draining first?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "critical singletons",
+      "draining",
+      "prune"
+    ]
+  },
+  {
+    "question": "If DiskPressure persists after cleanup, how do I evict pods gracefully?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "cordon",
+      "kubectl drain",
+      "ignore-daemonsets"
+    ]
+  },
+  {
+    "question": "When should I page infra for DiskPressure?",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": [
+      "more than one node",
+      "within an hour",
+      "systemic"
+    ]
+  },
+  {
+    "question": "How do I confirm an error spike correlates with a deployment?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "rollout history",
+      "spike timestamp",
+      "rollout"
+    ]
+  },
+  {
+    "question": "What should I check in the new revision logs after an error spike?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "panics",
+      "config errors",
+      "failed migrations"
+    ]
+  },
+  {
+    "question": "How do I diff the config of a specific revision?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "rollout history",
+      "revision",
+      "diff"
+    ]
+  },
+  {
+    "question": "What is the exact rollback command to return to the last good revision?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "rollout undo",
+      "to-revision",
+      "last-good"
+    ]
+  },
+  {
+    "question": "After rolling back, what should I verify before investigating the bad revision?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "error rates recover",
+      "bad revision"
+    ]
+  },
+  {
+    "question": "What should I do about further deploys of a service after a bad rollout?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "freeze",
+      "root cause",
+      "deploys"
+    ]
+  },
+  {
+    "question": "When should I write a postmortem after a failed deployment?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "postmortem",
+      "5 minutes",
+      "customer-facing"
+    ]
+  },
+  {
+    "question": "What should I attach to the postmortem after a failed deployment?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "bad revision diff",
+      "postmortem"
+    ]
+  },
+  {
+    "question": "What symptoms indicate a failed deployment?",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": [
+      "error rate",
+      "latency spikes",
+      "deployment"
+    ]
+  },
+  {
+    "question": "How do I confirm the new primary after a database failover?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "cluster status",
+      "exactly one node",
+      "primary"
+    ]
+  },
+  {
+    "question": "How much replica lag is acceptable before re-enabling writes after a failover?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "5 seconds",
+      "replica lag",
+      "re-enabling writes"
+    ]
+  },
+  {
+    "question": "After a failover, what should the app tier connections look like?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "read-write",
+      "read-only",
+      "replicas"
+    ]
+  },
+  {
+    "question": "What should I run against the new primary before declaring all-clear?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "smoke query",
+      "all-clear",
+      "new primary"
+    ]
+  },
+  {
+    "question": "How do I mitigate the split-brain risk (two primaries) in a database failover?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "split-brain",
+      "fence",
+      "two primaries"
+    ]
+  },
+  {
+    "question": "What should I do if a replica has high lag after a failover?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "read-only",
+      "catches up",
+      "lagging replica"
+    ]
+  },
+  {
+    "question": "What should I record after a database failover?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "failover duration",
+      "data-loss window",
+      "record"
+    ]
+  },
+  {
+    "question": "What should the data-loss window be with synchronous replication?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "zero",
+      "synchronous replication",
+      "data-loss window"
+    ]
+  },
+  {
+    "question": "What does a database failover mean for the primary and replicas?",
+    "expected_source": "db-failover.md",
+    "expected_keywords": [
+      "failed over",
+      "replica",
+      "primary"
+    ]
+  },
+  {
+    "question": "What is the Wi-Fi password for the office?",
+    "expected_source": null,
+    "expected_keywords": [],
+    "unanswerable": true
+  },
+  {
+    "question": "How do I expense a team lunch?",
+    "expected_source": null,
+    "expected_keywords": [],
+    "unanswerable": true
+  },
+  {
+    "question": "What is the promotion process for senior engineers?",
+    "expected_source": null,
+    "expected_keywords": [],
+    "unanswerable": true
+  },
+  {
+    "question": "How many vacation days do I get per year?",
     "expected_source": null,
     "expected_keywords": [],
     "unanswerable": true
