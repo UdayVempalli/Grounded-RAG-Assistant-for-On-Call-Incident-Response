@@ -19,10 +19,6 @@ RRF_K = 60
 # answerable ones bottom out at -2.36. -6.0 is the midpoint (max margin).
 # Re-measure if the corpus grows: the scores are not calibrated.
 MIN_RERANK_SCORE = -6.0
-# Minimum cross-encoder score for a chunk to count as relevant. Tuned on the
-# 55-question golden set: the 5 refusal questions top out at -9.65, the 50
-# answerable ones bottom out at -2.36. -6.0 is the midpoint (max margin).
-# Re-measure if the corpus grows: the scores are not calibrated.
 
 _model = None
 _reranker = None

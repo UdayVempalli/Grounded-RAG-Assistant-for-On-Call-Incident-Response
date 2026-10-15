@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 from app.eval import _normalize_quote, judge
 from app.ingest import _point_id, chunk_markdown
+from app.retrieve import retrieve
 
 
 def test_chunk_markdown_never_splits_mid_word():
@@ -153,7 +154,6 @@ def test_normalize_quote_strips_filler_verb():
 
 
 def test_retrieve_empty_corpus_returns_empty():
-    from unittest.mock import Mock, patch
     from app.retrieve import retrieve
     mock_client = Mock()
     mock_client.scroll.return_value = ([], None)
@@ -162,7 +162,6 @@ def test_retrieve_empty_corpus_returns_empty():
 
 
 def test_load_corpus_pages_through_scroll():
-    from unittest.mock import Mock, patch
     from app.retrieve import _load_corpus
 
     def point(pid, text):
@@ -181,10 +180,11 @@ def test_load_corpus_pages_through_scroll():
     assert [c["id"] for c in corpus] == ["1", "2", "3"]
 
 
-def test_retrieve_below_threshold_returns_empty():
-    from unittest.mock import Mock, patch
-    import app.retrieve as R
-    from app.retrieve import retrieve
+def _mocked_retrieve(score: float, question: str) -> list[dict]:
+    """Run retrieve() with all retrieval deps mocked, reranker returning `score`.
+
+    Shared by the threshold tests so the mock setup lives in one place.
+    """
     corpus = [{"id": "1", "text": "vacuum the journal", "source": "disk-pressure.md"}]
     bm25 = Mock()
     bm25.get_scores.return_value = [0.0]
@@ -193,36 +193,22 @@ def test_retrieve_below_threshold_returns_empty():
     mock_model = Mock()
     mock_model.encode.return_value = Mock(tolist=lambda: [0.0])
     mock_reranker = Mock()
-    mock_reranker.predict.return_value = [-10.0]
+    mock_reranker.predict.return_value = [score]
     with (
-        patch.object(R, "_load_corpus", return_value=(corpus, bm25)),
-        patch.object(R, "_get_model", return_value=mock_model),
-        patch.object(R, "_get_client", return_value=mock_client),
-        patch.object(R, "_get_reranker", return_value=mock_reranker),
+        patch("app.retrieve._load_corpus", return_value=(corpus, bm25)),
+        patch("app.retrieve._get_model", return_value=mock_model),
+        patch("app.retrieve._get_client", return_value=mock_client),
+        patch("app.retrieve._get_reranker", return_value=mock_reranker),
     ):
-        assert retrieve("What is the vacation policy?") == []
+        return retrieve(question)
+
+
+def test_retrieve_below_threshold_returns_empty():
+    assert _mocked_retrieve(-10.0, "What is the vacation policy?") == []
 
 
 def test_retrieve_above_threshold_returns_chunks():
-    from unittest.mock import Mock, patch
-    import app.retrieve as R
-    from app.retrieve import retrieve
-    corpus = [{"id": "1", "text": "vacuum the journal", "source": "disk-pressure.md"}]
-    bm25 = Mock()
-    bm25.get_scores.return_value = [0.0]
-    mock_client = Mock()
-    mock_client.query_points.return_value = Mock(points=[Mock(id="1")])
-    mock_model = Mock()
-    mock_model.encode.return_value = Mock(tolist=lambda: [0.0])
-    mock_reranker = Mock()
-    mock_reranker.predict.return_value = [5.0]
-    with (
-        patch.object(R, "_load_corpus", return_value=(corpus, bm25)),
-        patch.object(R, "_get_model", return_value=mock_model),
-        patch.object(R, "_get_client", return_value=mock_client),
-        patch.object(R, "_get_reranker", return_value=mock_reranker),
-    ):
-        result = retrieve("How do I free disk?")
+    result = _mocked_retrieve(5.0, "How do I free disk?")
     assert len(result) == 1 and result[0]["source"] == "disk-pressure.md"
 
 

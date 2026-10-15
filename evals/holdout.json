@@ -1,0 +1,68 @@
+[
+  {
+    "question": "How do I rotate TLS certificates on the ingress?",
+    "unanswerable": true,
+    "expected_source": null,
+    "expected_keywords": []
+  },
+  {
+    "question": "What's the escalation path for a security incident?",
+    "unanswerable": true,
+    "expected_source": null,
+    "expected_keywords": []
+  },
+  {
+    "question": "How do I restore a deleted S3 bucket?",
+    "unanswerable": true,
+    "expected_source": null,
+    "expected_keywords": []
+  },
+  {
+    "question": "How much RAM should a Redis node have?",
+    "unanswerable": true,
+    "expected_source": null,
+    "expected_keywords": []
+  },
+  {
+    "question": "Who approves production access requests?",
+    "unanswerable": true,
+    "expected_source": null,
+    "expected_keywords": []
+  },
+  {
+    "question": "How do I fix a Kafka consumer lag spike?",
+    "unanswerable": true,
+    "expected_source": null,
+    "expected_keywords": []
+  },
+  {
+    "question": "my container keeps restarting with OOMKilled, what now?",
+    "expected_source": "k8s-crashloop.md",
+    "expected_keywords": ["OOMKilled", "memory", "limit"]
+  },
+  {
+    "question": "the node's disk is almost full, help",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": ["DiskPressure", "disk", "free"]
+  },
+  {
+    "question": "p99 went up after the last release",
+    "expected_source": "high-latency.md",
+    "expected_keywords": ["p99", "latency", "roll back"]
+  },
+  {
+    "question": "how do I undo a helm release that broke things",
+    "expected_source": "failed-deploy.md",
+    "expected_keywords": ["rollout undo", "roll back", "helm"]
+  },
+  {
+    "question": "replica is lagging behind the new primary",
+    "expected_source": "db-failover.md",
+    "expected_keywords": ["replica", "lag", "failover"]
+  },
+  {
+    "question": "evicted pods everywhere on one node",
+    "expected_source": "disk-pressure.md",
+    "expected_keywords": ["evict", "DiskPressure", "drain"]
+  }
+]

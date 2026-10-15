@@ -136,8 +136,8 @@ def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
     return False, reason
 
 
-def main() -> None:
-    items = json.loads(GOLDEN.read_text())
+def main(golden_path: Path | None = None, report_only: bool = False) -> None:
+    items = json.loads((golden_path or GOLDEN).read_text())
     failures = []
 
     for i, item in enumerate(items):
@@ -189,8 +189,15 @@ def main() -> None:
         print("\nFAILURES:")
         for f in failures:
             print(" -", f)
-        sys.exit(1)
+        if not report_only:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run the eval over a golden/holdout set.")
+    parser.add_argument("--golden", type=Path, default=GOLDEN, help="question set JSON (default: evals/golden.json)")
+    parser.add_argument("--report-only", action="store_true", help="report the score but exit 0 even with failures (for the holdout set, which measures, not gates)")
+    args = parser.parse_args()
+    main(golden_path=args.golden, report_only=args.report_only)
