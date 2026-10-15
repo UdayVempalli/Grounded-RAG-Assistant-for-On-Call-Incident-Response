@@ -15,7 +15,7 @@ Production behaviors:
   dependency is down (no stack traces to the client)
 - Request IDs + structured logs on every request
 - Bearer API-key auth on /ask (RUNBOOKQA_API_KEY, fail-closed)
-- Per-key fixed-window rate limit (RUNBOOKQA_RATE_LIMIT per RUNBOOKQA_RATE_WINDOW_S, 429 + Retry-After)
+- Per-key sliding-window rate limit (RUNBOOKQA_RATE_LIMIT per RUNBOOKQA_RATE_WINDOW_S, 429 + Retry-After)
 """
 import hmac
 import logging
@@ -25,7 +25,7 @@ import time
 import uuid
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
@@ -151,7 +151,9 @@ def _require_api_key(request: Request) -> str:
         log.warning("request_id=%s rejected reason=api_key_unconfigured", request_id)
         raise HTTPException(status_code=503, detail="API key not configured")
     auth = request.headers.get("authorization", "")
-    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], expected):
+    if not auth.startswith("Bearer ") or not hmac.compare_digest(
+        auth[7:].encode("utf-8"), expected.encode("utf-8")
+    ):
         REJECTED.labels(reason="unauthorized").inc()
         log.warning("request_id=%s rejected reason=unauthorized", request_id)
         raise HTTPException(status_code=401, detail="unauthorized")
@@ -159,7 +161,7 @@ def _require_api_key(request: Request) -> str:
 
 
 def _check_rate_limit(key: str) -> None:
-    """Fixed-window rate limit per API key: RATE_LIMIT requests per RATE_WINDOW_S."""
+    """Sliding-window rate limit per API key: RATE_LIMIT requests per RATE_WINDOW_S."""
     limit = int(os.getenv("RUNBOOKQA_RATE_LIMIT", "10"))
     window = int(os.getenv("RUNBOOKQA_RATE_WINDOW_S", "60"))
     now = time.time()
@@ -175,6 +177,15 @@ def _check_rate_limit(key: str) -> None:
                 headers={"Retry-After": str(retry_after)},
             )
         bucket.append(now)
+
+
+def _auth_dependency(request: Request) -> str:
+    """Auth + rate-limit gate, run as a Depends() so it executes before
+    body validation: an unauthenticated caller gets 401 even with a bad body.
+    """
+    key = _require_api_key(request)
+    _check_rate_limit(key)
+    return key
 
 
 def _generate(question: str, context: str, request_id: str) -> dict:
@@ -205,10 +216,12 @@ def _generate(question: str, context: str, request_id: str) -> dict:
 
 
 @app.post("/ask")
-def ask(req: AskRequest, request: Request):
+def ask(
+    req: AskRequest,
+    request: Request,
+    key: str = Depends(_auth_dependency),
+):
     request_id = getattr(request.state, "request_id", "-")
-    key = _require_api_key(request)
-    _check_rate_limit(key)
     question = req.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="question must not be empty")

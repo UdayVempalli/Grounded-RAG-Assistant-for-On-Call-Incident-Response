@@ -143,7 +143,7 @@ def main() -> None:
         # 2. unanswerable questions must refuse, not hallucinate
         if item.get("unanswerable"):
             if "don't have a runbook" not in answer and "do not have" not in answer:
-                failures.append(f"[{i}] hallucinated instead of refusing: {q}")
+                failures.append(f"[{i}] hallucinated instead of refusing: {q}\n   ANSWER: {answer_raw}")
             else:
                 print(f"[{i}] PASS (refused) {q}")
             continue
@@ -153,14 +153,14 @@ def main() -> None:
         #     step, not every step)
         keywords = item.get("expected_keywords", [])
         if keywords and not any(kw.lower() in answer for kw in keywords):
-            failures.append(f"[{i}] no expected terms {keywords} in answer: {q}")
+            failures.append(f"[{i}] no expected terms {keywords} in answer: {q}\n   ANSWER: {answer_raw}")
             continue
         print(f"[{i}] PASS {q}")
 
         # 3b. groundedness, LLM-as-judge: every claim must trace to the context
         passed, reason = judge(q, chunks, answer_raw)
         if not passed:
-            failures.append(f"[{i}] judge FAIL: {reason} | Q: {q}")
+            failures.append(f"[{i}] judge FAIL: {reason} | Q: {q}\n   ANSWER: {answer_raw}")
         else:
             print(f"[{i}] PASS (judge) {q}")
             if "overruled" in reason:

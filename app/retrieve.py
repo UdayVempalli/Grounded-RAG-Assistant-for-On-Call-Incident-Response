@@ -14,6 +14,15 @@ from rank_bm25 import BM25Okapi
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION = "runbooks"
 RRF_K = 60
+# Minimum cross-encoder score for a chunk to count as relevant. Tuned on the
+# 55-question golden set: the 5 refusal questions top out at -9.65, the 50
+# answerable ones bottom out at -2.36. -6.0 is the midpoint (max margin).
+# Re-measure if the corpus grows: the scores are not calibrated.
+MIN_RERANK_SCORE = -6.0
+# Minimum cross-encoder score for a chunk to count as relevant. Tuned on the
+# 55-question golden set: the 5 refusal questions top out at -9.65, the 50
+# answerable ones bottom out at -2.36. -6.0 is the midpoint (max margin).
+# Re-measure if the corpus grows: the scores are not calibrated.
 
 _model = None
 _reranker = None
@@ -59,7 +68,19 @@ def _tokenize(text: str) -> list[str]:
 def _load_corpus():
     # No cache: reload on every query so a re-ingest is visible without an
     # API restart. The scroll is ~ms at this corpus size.
-    points, _ = _get_client().scroll(COLLECTION, limit=1000, with_payload=True)
+    # Page through all points: a single scroll caps at `limit`, so a corpus
+    # larger than 1000 chunks would silently lose the rest from BM25.
+    points: list = []
+    offset = None
+    while True:
+        batch, offset = _get_client().scroll(
+            COLLECTION, limit=1000, offset=offset, with_payload=True
+        )
+        points.extend(batch)
+        if offset is None:
+            break
+    if not points:
+        return [], None
     # Deterministic corpus order: never depend on Qdrant's scroll order.
     points.sort(key=lambda p: str(p.id))
     corpus = [
@@ -82,6 +103,11 @@ def _rrf_fuse(dense_ids: list, sparse_ids: list, top_n: int = 10) -> list:
 
 def retrieve(question: str, top_k: int = 4) -> list[dict]:
     corpus, bm25 = _load_corpus()
+    if not corpus:
+        # Empty index (fresh deploy, before ingest): no chunks to rank.
+        # Return [] so /ask takes the refusal path instead of crashing
+        # in BM25 (ZeroDivisionError on an empty corpus).
+        return []
     by_id = {c["id"]: c for c in corpus}
 
     # 1. dense
@@ -103,6 +129,12 @@ def retrieve(question: str, top_k: int = 4) -> list[dict]:
     rerank_scores = _get_reranker().predict(pairs)
     order = sorted(range(len(fused)),
                    key=lambda i: (rerank_scores[i], str(fused[i])), reverse=True)[:top_k]
+
+    if not order or rerank_scores[order[0]] < MIN_RERANK_SCORE:
+        # Cheap refusal: even the best chunk is irrelevant, so the question
+        # is out of corpus. Return [] so /ask refuses without a model call
+        # (the pre-hybrid behavior for out-of-corpus questions).
+        return []
 
     return [
         {"text": by_id[fused[i]]["text"],

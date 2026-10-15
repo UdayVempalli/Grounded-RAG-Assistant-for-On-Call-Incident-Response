@@ -118,3 +118,18 @@ def test_ask_rate_limited_429(mock_retrieve, mock_generate, monkeypatch):
     r2 = client.post("/ask", json={"question": "What is step one?"}, headers=HEADERS)
     assert r2.status_code == 429
     assert "Retry-After" in r2.headers
+
+
+def test_ask_non_ascii_key_401():
+    r = client.post(
+        "/ask",
+        json={"question": "What is step one?"},
+        headers={"Authorization": "Bearer caf\u00e9".encode("latin-1")},
+    )
+    assert r.status_code == 401
+
+
+def test_ask_unauthenticated_bad_body_401():
+    # Auth runs before body validation: no key + bad body -> 401, not 422.
+    r = client.post("/ask", json={"question": "x" * 2001})
+    assert r.status_code == 401
