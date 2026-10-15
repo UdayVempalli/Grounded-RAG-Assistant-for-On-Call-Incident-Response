@@ -17,6 +17,7 @@ services:
     environment:
       - QDRANT_URL=http://qdrant:6333
       - OLLAMA_URL=http://host.docker.internal:11434
+      - RUNBOOKQA_API_KEY=${RUNBOOKQA_API_KEY:?set RUNBOOKQA_API_KEY in .env}
     depends_on:
       - qdrant
 

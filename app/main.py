@@ -14,9 +14,13 @@ Production behaviors:
 - Retries with backoff on the Ollama call; graceful 503s when a
   dependency is down (no stack traces to the client)
 - Request IDs + structured logs on every request
+- Bearer API-key auth on /ask (RUNBOOKQA_API_KEY, fail-closed)
+- Per-key fixed-window rate limit (RUNBOOKQA_RATE_LIMIT per RUNBOOKQA_RATE_WINDOW_S, 429 + Retry-After)
 """
+import hmac
 import logging
 import os
+import threading
 import time
 import uuid
 
@@ -43,6 +47,9 @@ log = logging.getLogger("runbookqa")
 
 ASK_COUNT = Counter(
     "runbookqa_ask_total", "Total /ask requests", ["outcome", "model"]
+)
+REJECTED = Counter(
+    "runbookqa_ask_rejected_total", "Rejected /ask requests", ["reason"]
 )
 ASK_LATENCY = Histogram(
     "runbookqa_ask_latency_seconds", "End-to-end latency of /ask", ["outcome"]
@@ -128,6 +135,48 @@ def metrics():
     return Response(generate_latest(), media_type="text/plain")
 
 
+_RATE_BUCKETS: dict[str, list[float]] = {}
+_RATE_LOCK = threading.Lock()
+
+
+def _require_api_key(request: Request) -> str:
+    """Bearer auth, fail-closed: no key configured -> 503, bad key -> 401.
+
+    The presented key is never logged.
+    """
+    request_id = getattr(request.state, "request_id", "-")
+    expected = os.getenv("RUNBOOKQA_API_KEY", "")
+    if not expected:
+        REJECTED.labels(reason="unconfigured").inc()
+        log.warning("request_id=%s rejected reason=api_key_unconfigured", request_id)
+        raise HTTPException(status_code=503, detail="API key not configured")
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], expected):
+        REJECTED.labels(reason="unauthorized").inc()
+        log.warning("request_id=%s rejected reason=unauthorized", request_id)
+        raise HTTPException(status_code=401, detail="unauthorized")
+    return expected
+
+
+def _check_rate_limit(key: str) -> None:
+    """Fixed-window rate limit per API key: RATE_LIMIT requests per RATE_WINDOW_S."""
+    limit = int(os.getenv("RUNBOOKQA_RATE_LIMIT", "10"))
+    window = int(os.getenv("RUNBOOKQA_RATE_WINDOW_S", "60"))
+    now = time.time()
+    with _RATE_LOCK:
+        bucket = _RATE_BUCKETS.setdefault(key, [])
+        bucket[:] = [t for t in bucket if now - t < window]
+        if len(bucket) >= limit:
+            REJECTED.labels(reason="rate_limited").inc()
+            retry_after = max(1, int(window - (now - bucket[0])))
+            raise HTTPException(
+                status_code=429,
+                detail="rate limit exceeded",
+                headers={"Retry-After": str(retry_after)},
+            )
+        bucket.append(now)
+
+
 def _generate(question: str, context: str, request_id: str) -> dict:
     """Call Ollama with retries. Returns the parsed JSON body."""
     payload = {
@@ -158,6 +207,8 @@ def _generate(question: str, context: str, request_id: str) -> dict:
 @app.post("/ask")
 def ask(req: AskRequest, request: Request):
     request_id = getattr(request.state, "request_id", "-")
+    key = _require_api_key(request)
+    _check_rate_limit(key)
     question = req.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="question must not be empty")
