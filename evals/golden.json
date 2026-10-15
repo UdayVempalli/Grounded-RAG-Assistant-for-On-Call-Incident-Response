@@ -470,5 +470,45 @@
     "expected_source": null,
     "expected_keywords": [],
     "unanswerable": true
+  },
+  {
+    "question": "How do I find the slowest database queries?",
+    "expected_source": "db-slow-queries.md",
+    "expected_keywords": [
+      "pg_stat_statements",
+      "mean_exec_time"
+    ]
+  },
+  {
+    "question": "How do I check for missing indexes on a slow query?",
+    "expected_source": "db-slow-queries.md",
+    "expected_keywords": [
+      "EXPLAIN ANALYZE",
+      "sequential scan"
+    ]
+  },
+  {
+    "question": "How do I check for locks blocking a query?",
+    "expected_source": "db-slow-queries.md",
+    "expected_keywords": [
+      "pg_locks",
+      "NOT granted"
+    ]
+  },
+  {
+    "question": "How do I add an index to a live table without locking writes?",
+    "expected_source": "db-slow-queries.md",
+    "expected_keywords": [
+      "CONCURRENTLY",
+      "CREATE INDEX"
+    ]
+  },
+  {
+    "question": "How do I kill a session holding a lock?",
+    "expected_source": "db-slow-queries.md",
+    "expected_keywords": [
+      "pg_terminate_backend",
+      "blocking"
+    ]
   }
 ]
