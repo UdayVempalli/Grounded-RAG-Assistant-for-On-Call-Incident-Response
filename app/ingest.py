@@ -56,12 +56,14 @@ def _split_words(block: str, size: int, overlap: int) -> list[str]:
 
 
 
-def chunk_markdown(text: str, size: int = 500, overlap: int = 50, split_on_headings: bool = True) -> list[str]:
+def chunk_markdown(text: str, size: int = 500, overlap: int = 50) -> list[str]:
     """Boundary-aware chunking: split on markdown headings and blank lines,
-    unless split_on_headings is False (whole document packs into chunks up to `size`).
     pack whole blocks into chunks up to `size`; a block longer than `size`
     is split at word boundaries, never mid-word. Each chunk is prefixed
-    with its section heading so it stays self-contained."""
+    with the document title and its section heading so it stays
+    self-contained: without the title, a runbook's "## Diagnosis" chunk
+    never names its topic, and a question about CrashLoopBackOff ranked
+    k8s-image-pull.md (which mentions it in passing) above k8s-crashloop.md."""
     blocks = []
     for line in text.splitlines():
         s = line.strip()
@@ -72,12 +74,6 @@ def chunk_markdown(text: str, size: int = 500, overlap: int = 50, split_on_headi
     cur: list[tuple[str, str]] = []
     cur_len = 0
     cur_heading = ""
-    if not split_on_headings:
-        for line in text.splitlines():
-            s = line.strip()
-            if s.startswith("#"):
-                cur_heading = s
-                break
 
     def flush() -> None:
         nonlocal cur, cur_len
@@ -90,7 +86,7 @@ def chunk_markdown(text: str, size: int = 500, overlap: int = 50, split_on_headi
         cur, cur_len = [], 0
 
     for kind, b in blocks:
-        if kind == "heading" and split_on_headings:
+        if kind == "heading":
             flush()
             cur_heading = b
             cur = [("heading", b)]
@@ -111,7 +107,13 @@ def chunk_markdown(text: str, size: int = 500, overlap: int = 50, split_on_headi
         cur.append((kind, b))
         cur_len += 1 + len(b)
     flush()
-    return [c.strip() for c in chunks if c.strip()]
+    title = next((b for _, b in blocks if b.startswith("# ")), "")
+    result = []
+    for c in (c.strip() for c in chunks):
+        if not c or c == title:
+            continue  # a title-only chunk carries no content
+        result.append(c if not title or c.startswith(title) else title + "\n" + c)
+    return result
 
 
 def _point_id(source: str, index: int) -> str:
@@ -174,14 +176,19 @@ def main(model=None, client=None) -> None:
         current_sources.add(source)
         # Upload-then-delete: upsert the new chunks first, then delete only
         # the old IDs no longer used. Queries never see a gap for this source.
-        text = md_file.read_text()
+        # Explicit UTF-8: the platform default (cp1252 on Windows) garbled
+        # every em dash in the index, and the judge then quoted the garbage.
+        text = md_file.read_text(encoding="utf-8")
         chunks = chunk_markdown(text)
         vectors = model.encode(chunks, show_progress_bar=True)
         points = [
             PointStruct(
                 id=_point_id(source, i),
                 vector=vector.tolist(),
-                payload={"source": source, "text": chunk},
+                # "doc" carries the full runbook so retrieval can expand the
+                # top chunk to its parent (small-to-big) from the index alone,
+                # never from disk: the index stays the single source of truth.
+                payload={"source": source, "text": chunk, "doc": text},
             )
             for i, (chunk, vector) in enumerate(zip(chunks, vectors))
         ]
