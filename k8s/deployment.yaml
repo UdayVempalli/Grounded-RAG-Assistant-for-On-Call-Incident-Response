@@ -14,9 +14,13 @@ spec:
       labels:
         app: runbookqa-api
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
-          image: runbookqa-api:latest
+          image: runbookqa-api:8af33c2  # build with: docker build -t runbookqa-api:8af33c2 .
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -41,6 +45,17 @@ spec:
             limits:
               cpu: "2"
               memory: "4Gi"
+          # readOnlyRootFilesystem skipped: the API writes feedback.jsonl to /code/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 30
+            periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health

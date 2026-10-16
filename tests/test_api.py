@@ -1,9 +1,9 @@
-import json
 """API tests: FastAPI TestClient with mocked retrieval + generation.
 
 No model calls, no live Qdrant/Ollama — retrieve, _generate, and _check are mocked.
 Run:  python -m pytest tests/ -v
 """
+import json
 from unittest.mock import patch
 
 import httpx
@@ -228,3 +228,24 @@ def test_notify_slack_posts_when_configured(monkeypatch):
     _notify_slack("hello")
     assert len(calls) == 1
     assert calls[0][0][0] == "https://hooks.slack.com/test"
+
+
+def test_ask_stream_ollama_error(monkeypatch):
+    monkeypatch.setattr("app.main.retrieve", lambda q: [{"source": "db-failover.md", "text": "fence"}])
+    def boom(q, c, rid):
+        raise httpx.HTTPError("boom")
+    monkeypatch.setattr("app.main._generate_stream", boom)
+    with client.stream("POST", "/ask/stream", json={"question": "q"}, headers=HEADERS) as r:
+        assert r.status_code == 200
+        body = r.read().decode()
+    assert "generation service unavailable" in body
+
+
+def test_ingest_concurrent_409():
+    from app.main import INGEST_LOCK
+    INGEST_LOCK.acquire()
+    try:
+        r = client.post("/ingest", headers=HEADERS)
+        assert r.status_code == 409
+    finally:
+        INGEST_LOCK.release()

@@ -125,7 +125,7 @@ challenge, what happened, the fix, and the takeaway.
 
 ## 25. Threshold tuned on the test set
 - Challenge: the reranker threshold (-6.0) was tuned on the golden set, so the golden set could not measure it fairly.
-- Fix: held-out set (evals/holdout.json, 12 untuned questions, 11/12) + report-only runner.
+- Fix: held-out set (evals/holdout.json, 12 untuned questions, 8/12 on the 20-runbook corpus with small-to-big + two-layer refusal) + report-only runner.
 - Lesson: never evaluate on the set you tuned on.
 
 ## 26. CI speedup is not thread speedup

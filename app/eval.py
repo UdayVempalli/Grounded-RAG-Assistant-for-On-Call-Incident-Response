@@ -156,17 +156,21 @@ def main(golden_path: Path | None = None, report_only: bool = False) -> None:
             failures.append(f"[{i}] retrieval miss: {item['expected_source']} not in {sources}")
             continue
 
-        # 2. unanswerable questions must refuse the way production does:
-        # retrieve() returns [] (threshold gate) and /ask refuses without
-        # a model call. Assert the empty retrieval; do not call the LLM on
-        # a path production never sends to the model.
+        # 2. unanswerable questions must refuse, two layers:
+        # (a) threshold gate (empty retrieval) -> refuse without a model call;
+        # (b) near-miss chunks returned -> the LLM itself must refuse from
+        # the context, not answer. Either layer passing is a PASS.
         if item.get("unanswerable"):
-            if chunks:
-                failures.append(
-                    f"[{i}] expected empty retrieval for unanswerable question, got {len(chunks)} chunks: {q}"
-                )
-            else:
+            if not chunks:
                 print(f"[{i}] PASS (refused, empty retrieval) {q}")
+                continue
+            answer_raw = generate(q, chunks)
+            if "don't have a runbook for that" in answer_raw.lower():
+                print(f"[{i}] PASS (refused, LLM) {q}")
+            else:
+                failures.append(
+                    f"[{i}] unanswerable question answered instead of refused: {q}\n   ANSWER: {answer_raw}"
+                )
             continue
 
         answer_raw = generate(q, chunks)

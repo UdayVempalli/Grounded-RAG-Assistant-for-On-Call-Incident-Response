@@ -62,3 +62,5 @@ jobs:
 
       - name: run eval harness (regressions break the build)
         run: python -m app.eval
+      - name: Run held-out set (measurement only, never gates)
+        run: python -m app.eval --golden evals/holdout.json --report-only

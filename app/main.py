@@ -18,18 +18,17 @@ Production behaviors:
 - Per-key sliding-window rate limit (RUNBOOKQA_RATE_LIMIT per RUNBOOKQA_RATE_WINDOW_S, 429 + Retry-After)
 """
 import hmac
+import json
 import logging
 import os
 import threading
-import json
-from pathlib import Path
 import time
 import uuid
+from pathlib import Path
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
-from fastapi.responses import JSONResponse, Response
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from prometheus_client import Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
@@ -240,7 +239,7 @@ def _notify_slack(text: str) -> None:
 
 
 @app.post("/feedback")
-def feedback(req: FeedbackRequest, request: Request, key: str = Depends(_auth_dependency)):
+def feedback(req: FeedbackRequest, request: Request, background_tasks: BackgroundTasks, key: str = Depends(_auth_dependency)):
     """Thumbs up/down on an answer. Appended to data/feedback.jsonl (gitignored) for golden-set review."""
     entry = {
         "timestamp": time.time(),
@@ -254,19 +253,27 @@ def feedback(req: FeedbackRequest, request: Request, key: str = Depends(_auth_de
         f.write(json.dumps(entry) + "\n")
     log.info("request_id=%s feedback helpful=%s", req.request_id, req.helpful)
     if not req.helpful:
-        _notify_slack(f"Thumbs down | Q: {req.question} | A: {req.answer[:200]}")
+        background_tasks.add_task(_notify_slack, f"Thumbs down | Q: {req.question} | A: {req.answer[:200]}")
     return {"status": "ok"}
+
+
+INGEST_LOCK = threading.Lock()
 
 
 @app.post("/ingest")
 def ingest_endpoint(request: Request, key: str = Depends(_auth_dependency)):
     """Re-ingest runbooks from disk (local dev: the mounted ./data/runbooks)."""
-    from app.ingest import main as ingest_main
-    from app.retrieve import _get_client, _get_model
+    if not INGEST_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="ingest already running")
+    try:
+        from app.ingest import main as ingest_main
+        from app.retrieve import _get_client, _get_model
 
-    ingest_main(model=_get_model(), client=_get_client())
-    log.info("request_id=%s ingest done", request.state.request_id)
-    return {"status": "ok"}
+        ingest_main(model=_get_model(), client=_get_client())
+        log.info("request_id=%s ingest done", request.state.request_id)
+        return {"status": "ok"}
+    finally:
+        INGEST_LOCK.release()
 
 
 def _generate_stream(question: str, context: str, request_id: str):
@@ -288,22 +295,47 @@ def _generate_stream(question: str, context: str, request_id: str):
                 yield token
 
 
+def _retrieve_context(question: str) -> tuple[list[dict], str]:
+    """Retrieve + build the LLM context (shared by /ask and /ask/stream)."""
+    chunks = retrieve(question)
+    context = "\n\n---\n\n".join(f"[{c['source']}]\n{c['text']}" for c in chunks)
+    return chunks, context
+
+
 @app.post("/ask/stream")
 def ask_stream(req: AskRequest, request: Request, key: str = Depends(_auth_dependency)):
     """Streaming /ask (SSE). Same retrieval + refusal as /ask; tokens stream as they arrive."""
-    chunks = retrieve(req.question)
+    request_id = getattr(request.state, "request_id", "-")
+    question = req.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="question must not be empty")
+    start = time.time()
+    chunks, context = _retrieve_context(question)
     if not chunks:
         def _refusal():
-            yield f"data: {json.dumps({'token': REFUSAL_TEXT})}\n\n"
-            yield f"data: {json.dumps({'done': True, 'sources': []})}\n\n"
+            try:
+                yield f"data: {json.dumps({'token': REFUSAL_TEXT})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'sources': []})}\n\n"
+            finally:
+                ASK_LATENCY.labels(outcome="refused").observe(time.time() - start)
+                ASK_COUNT.labels(outcome="refused", model=LLM_MODEL).inc()
         return StreamingResponse(_refusal(), media_type="text/event-stream")
-    context = "\n\n".join(f"[{c['source']}]\n{c['text']}" for c in chunks)
     sources = sorted({c["source"] for c in chunks})
+    outcome = "answered"
 
     def _stream():
-        for token in _generate_stream(req.question, context, request.state.request_id):
-            yield f"data: {json.dumps({'token': token})}\n\n"
-        yield f"data: {json.dumps({'done': True, 'sources': sources})}\n\n"
+        nonlocal outcome
+        try:
+            for token in _generate_stream(question, context, request_id):
+                yield f"data: {json.dumps({'token': token})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'sources': sources})}\n\n"
+        except httpx.HTTPError as e:
+            outcome = "error"
+            log.error("request_id=%s ollama unavailable (stream): %s", request_id, e)
+            yield f"data: {json.dumps({'error': 'generation service unavailable'})}\n\n"
+        finally:
+            ASK_LATENCY.labels(outcome=outcome).observe(time.time() - start)
+            ASK_COUNT.labels(outcome=outcome, model=LLM_MODEL).inc()
     return StreamingResponse(_stream(), media_type="text/event-stream")
 
 
@@ -321,7 +353,7 @@ def ask(
     outcome = "error"
     try:
         t0 = time.time()
-        chunks = retrieve(question)
+        chunks, context = _retrieve_context(question)
         RETRIEVAL_LATENCY.labels(
             result="hit" if chunks else "miss"
         ).observe(time.time() - t0)
@@ -338,9 +370,6 @@ def ask(
                 request_id,
             )
             return {"answer": REFUSAL_TEXT, "sources": [], "request_id": request_id}
-        context = "\n\n---\n\n".join(
-            f"[{c['source']}]\n{c['text']}" for c in chunks
-        )
         t1 = time.time()
         try:
             body = _generate(question, context, request_id)

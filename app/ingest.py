@@ -175,9 +175,7 @@ def main(model=None, client=None) -> None:
         # Upload-then-delete: upsert the new chunks first, then delete only
         # the old IDs no longer used. Queries never see a gap for this source.
         text = md_file.read_text()
-        # size=2000: runbooks are short (21 lines), so one chunk per runbook.
-        # Keeps Symptoms + Diagnosis + Mitigation together; the model always sees the fix.
-        chunks = chunk_markdown(text, size=2000, split_on_headings=False)
+        chunks = chunk_markdown(text)
         vectors = model.encode(chunks, show_progress_bar=True)
         points = [
             PointStruct(

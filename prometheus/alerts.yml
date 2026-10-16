@@ -16,12 +16,21 @@ groups:
         annotations:
           summary: "More than 10 /ask rejections in 10 minutes (auth or rate limit)"
 
-      - alert: RefusalSpike
-        expr: increase(runbookqa_refusals_total[1h]) > 20
+      - alert: AskErrorRateHigh
+        expr: sum(rate(runbookqa_ask_total{outcome="error"}[5m])) / sum(rate(runbookqa_ask_total[5m])) > 0.05
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "More than 20 refusals in an hour (corpus gap or threshold miscalibration)"
+          summary: "/ask error rate above 5%"
+
+      - alert: RefusalRatioHigh
+        expr: sum(rate(runbookqa_refusals_total[5m])) / sum(rate(runbookqa_ask_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Refusal ratio above 50% (corpus gap or threshold miscalibration)"
 
       - alert: TargetDown
         expr: up == 0

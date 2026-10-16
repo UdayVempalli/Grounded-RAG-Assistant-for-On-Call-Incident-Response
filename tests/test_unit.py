@@ -242,3 +242,21 @@ def test_chunk_markdown_no_heading_split():
     assert chunk_markdown("## A\n\nhello\n\n## B\n\nworld", size=2000, split_on_headings=False) == [
         "## A\nhello\n## B\nworld",
     ]
+
+
+def test_eval_unanswerable_llm_refusal_passes(monkeypatch, tmp_path, capsys):
+    (tmp_path / "g.json").write_text('[{"question": "rotate TLS?", "unanswerable": true, "expected_source": null, "expected_keywords": []}]')
+    monkeypatch.setattr("app.eval.retrieve", lambda q, top_k=4: [{"source": "ingress-502.md", "text": "full"}])
+    monkeypatch.setattr("app.eval.generate", lambda q, c: "I don't have a runbook for that.")
+    from app.eval import main
+    main(golden_path=tmp_path / "g.json", report_only=True)
+    assert "1/1 evals passed" in capsys.readouterr().out
+
+
+def test_eval_unanswerable_llm_answer_fails(monkeypatch, tmp_path, capsys):
+    (tmp_path / "g.json").write_text('[{"question": "rotate TLS?", "unanswerable": true, "expected_source": null, "expected_keywords": []}]')
+    monkeypatch.setattr("app.eval.retrieve", lambda q, top_k=4: [{"source": "ingress-502.md", "text": "full"}])
+    monkeypatch.setattr("app.eval.generate", lambda q, c: "Here is how to rotate TLS certs.")
+    from app.eval import main
+    main(golden_path=tmp_path / "g.json", report_only=True)
+    assert "0/1 evals passed" in capsys.readouterr().out

@@ -97,6 +97,12 @@ def _rrf_fuse(dense_ids: list, sparse_ids: list, top_n: int = 10) -> list:
     return sorted(scores, key=lambda pid: (scores[pid], str(pid)), reverse=True)[:top_n]
 
 
+def _read_runbook(source: str) -> str:
+    """Full text of one runbook file (small-to-big: the parent document)."""
+    with open(f"data/runbooks/{source}", encoding="utf-8") as f:
+        return f.read()
+
+
 def retrieve(question: str, top_k: int = 4) -> list[dict]:
     corpus, bm25 = _load_corpus()
     if not corpus:
@@ -132,9 +138,16 @@ def retrieve(question: str, top_k: int = 4) -> list[dict]:
         # (the pre-hybrid behavior for out-of-corpus questions).
         return []
 
-    return [
-        {"text": by_id[fused[i]]["text"],
-         "source": by_id[fused[i]]["source"],
-         "score": float(rerank_scores[i])}
-        for i in order
-    ]
+    # Small-to-big: search scored section chunks, but pass the whole runbook
+    # each top chunk came from to the LLM, so it always sees the fix
+    # (Symptoms + Diagnosis + Mitigation), not just the matched section.
+    expanded = []
+    seen = set()
+    for i in order:
+        src = by_id[fused[i]]["source"]
+        if src in seen:
+            continue
+        seen.add(src)
+        expanded.append({"text": _read_runbook(src), "source": src,
+                         "score": float(rerank_scores[i])})
+    return expanded

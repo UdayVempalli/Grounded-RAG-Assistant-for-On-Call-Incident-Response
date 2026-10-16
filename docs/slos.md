@@ -11,12 +11,12 @@ deployment, not a production SLA.
 ## Retrieval hit rate
 - SLO: >= 95% on the golden set (expected_source in top-4).
 - Basis: measured 130/130 = 100% (20 runbooks, 104 chunks).
-- Note: the held-out set (12 untuned questions) measured 11/12 = 91.7%. The golden set is the gate; the holdout is the honest check.
+- Note: the held-out set (12 untuned questions) measured 8/12 = 66.7% (20-runbook corpus, small-to-big + two-layer refusal). Breakdown: 3 near-miss refusals pass via the LLM layer; 3 answerable over-refuse on vague questions (3B-model long-context limit); 1 judge false-FAIL on a correct answer; 1 out-of-corpus helm question. The golden set is the gate; the holdout is the honest check.
 
 ## Refusal accuracy
 - SLO: 100% on unanswerable questions (no answer when the corpus has no runbook).
-- Basis: 5/5 golden unanswerable + 6/6 holdout refuse questions return empty retrieval, no LLM call.
-- Note: the refusal is enforced by the reranker threshold (-6.0), not by the model.
+- Basis: 5/5 golden unanswerable return empty retrieval (no LLM call); 3/6 holdout refuse questions return empty retrieval, 3/6 pass via the LLM refusing from the context.
+- Note: refusal is two-layer: the reranker threshold (-6.0) catches clearly off-topic questions; for near-misses that return chunks, the model itself must refuse from the context.
 
 ## Availability
 - SLO: 99% of /health checks succeed (demo deployment).
