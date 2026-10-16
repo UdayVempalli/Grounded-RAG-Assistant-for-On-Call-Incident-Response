@@ -1,0 +1,162 @@
+[
+  {
+    "question": "What is the most common cause of DiskPressure according to the runbook?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Answer states runaway logging is the most common cause, which is disk-pressure.md step 2 (with a 'Runway' typo)."
+  },
+  {
+    "question": "What does it mean if a pod has zero restarts and never reaches Running?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Zero restarts and never Running = ImagePullBackOff is k8s-image-pull.md's symptom line ('zero restarts (it never started), unlike CrashLoopBackOff')."
+  },
+  {
+    "question": "How do I create an image pull secret?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Answer is the runbook's kubectl create secret docker-registry command verbatim."
+  },
+  {
+    "question": "What does a 504 Gateway Timeout mean?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Paraphrase of api-timeout.md diagnosis step 1: 'if the upstream takes longer than the client timeout, the client gives up first'."
+  },
+  {
+    "question": "How do I tell if a crash was caused by a config change?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Grounded in both retrieved runbooks: kubectl rollout history (k8s-crashloop.md) and the ConfigMap diff (deploy-config.md step 1)."
+  },
+  {
+    "question": "How do I check for a missing key in a ConfigMap?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Near-verbatim deploy-config.md step 3 (kubectl describe configmap, missing key)."
+  },
+  {
+    "question": "What does '0/3 nodes are available' mean?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Faithful reading of k8s-pending.md's '0/3 nodes are available' symptom: no node can schedule the pod."
+  },
+  {
+    "question": "How do I check if the Service selector matches the pod labels?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Verbatim k8s-service-down.md step 2 (kubectl get svc -o yaml, compare selector against pod labels)."
+  },
+  {
+    "question": "How do I check if the Service port matches the pod port?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Verbatim k8s-service-down.md step 4 and mitigation (Service targetPort must match the pod's containerPort)."
+  },
+  {
+    "question": "How do I restart the kubelet?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Verbatim node-not-ready.md mitigation: systemctl restart kubelet."
+  },
+  {
+    "question": "A node is reporting DiskPressure. What should I check before evicting pods?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Correct command (journalctl --disk-usage) plus an invented instruction to look for 'log disk space' in its output."
+  },
+  {
+    "question": "What command shows a pod is in CrashLoopBackOff?",
+    "categories": [
+      "keyword"
+    ],
+    "label": "model-limit",
+    "reason": "Wrong command: answers kubectl describe pod; the runbook says kubectl get pods shows CrashLoopBackOff. Persistent across every run."
+  },
+  {
+    "question": "What does the DiskPressure condition mean for pods on the node?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Overstates DiskPressure as 'the disk is full'; the runbook only says the condition appears and the kubelet evicts pods."
+  },
+  {
+    "question": "Should I freeze further deploys of a service after a bad rollout?",
+    "categories": [
+      "keyword"
+    ],
+    "label": "model-limit",
+    "reason": "Invents a condition ('only if ... exceed 10 minutes') and a fake citation path; the runbook says freeze deploys until the root cause is found. Introduced by the conditional-answer prompt rule, which fixed two other items."
+  },
+  {
+    "question": "What should I do if a replica has high lag after a failover?",
+    "categories": [
+      "keyword"
+    ],
+    "label": "model-limit",
+    "reason": "Gives the diagnosis step (check lag < 5s) instead of the mitigation asked for (keep traffic read-only on the lagging replica)."
+  },
+  {
+    "question": "How do I diff a ConfigMap against the last known good version?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Invents lastApplied/lastModified timestamps; the runbook only says compare the ConfigMap YAML against the last known good version."
+  },
+  {
+    "question": "How do I check if a rotated secret is causing a config error?",
+    "categories": [
+      "keyword"
+    ],
+    "label": "model-limit",
+    "reason": "Answers from failed-deploy.md (revision logs) instead of deploy-config.md step 4 (kubectl get secret; a rotated secret looks like a config error), which was retrieved."
+  },
+  {
+    "question": "What does a 502 Bad Gateway from the ingress mean?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Negation flip: says the backend Service and port 'must not exist'; the runbook says they must exist."
+  },
+  {
+    "question": "What is ingressClassName and why does it matter?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Pastes the retrieved context back, then invents a kubectl jsonpath command not in the runbook."
+  },
+  {
+    "question": "Should I raise the rate limit?",
+    "categories": [
+      "answered"
+    ],
+    "label": "model-limit",
+    "reason": "Over-refusal: refuses 'Should I raise the rate limit?'; rate-limit.md says raise it only if the backend can handle it."
+  }
+]
