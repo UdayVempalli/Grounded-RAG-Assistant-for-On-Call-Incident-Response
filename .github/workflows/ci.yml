@@ -1,0 +1,62 @@
+name: ci
+
+# Fast signal on every push: unit/API tests (~1 min) and security scans.
+# The slow LLM eval lives in eval.yml (sample) and eval-nightly.yml (full).
+on:
+  push:
+  pull_request:
+
+env:
+  TRIVY_IMAGE: aquasec/trivy@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222  # 0.76.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+
+      - name: install deps (CPU-only torch first)
+        run: |
+          TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3)
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}"
+          pip install -r requirements-lock.txt -r requirements-dev.txt
+
+      - name: unit + API tests
+        run: python -m pytest tests/ -v
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Audits the pinned versions against the PyPI advisory DB without
+      # installing them. "+cpu" is stripped so torch is audited at its PyPI
+      # version instead of being skipped as "not on PyPI".
+      - name: pip-audit (dependency CVEs)
+        run: |
+          pip install pip-audit==2.10.1
+          sed 's/+cpu//' requirements-lock.txt > /tmp/audit-reqs.txt
+          pip-audit -r /tmp/audit-reqs.txt --no-deps --disable-pip --progress-spinner off
+
+      - name: trivy (secrets + Dockerfile/k8s misconfig, HIGH/CRITICAL)
+        run: |
+          docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" fs --exit-code 1 \
+            --scanners secret,misconfig --severity HIGH,CRITICAL --skip-dirs .git /src
+
+      - name: build image
+        run: docker build -t runbookqa-api:ci .
+
+      - name: trivy (image CVEs with a fix available, HIGH/CRITICAL)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image \
+            --exit-code 1 --ignore-unfixed --scanners vuln --severity HIGH,CRITICAL runbookqa-api:ci

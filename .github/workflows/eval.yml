@@ -1,66 +1,53 @@
 name: eval-gate
 
+# Fast LLM gate: a fixed stratified sample (1 question per runbook + every
+# refusal and prompt-injection item, ~30 items) instead of all 135. The full
+# set and the held-out set run nightly (eval-nightly.yml). Only runs when
+# something that can change answers changes.
 on:
   push:
+    paths:
+      - "app/**"
+      - "evals/**"
+      - "data/runbooks/**"
+      - "requirements*.txt"
+      - ".github/workflows/eval.yml"
+      - ".github/actions/eval-setup/**"
   pull_request:
+    paths:
+      - "app/**"
+      - "evals/**"
+      - "data/runbooks/**"
+      - "requirements*.txt"
+      - ".github/workflows/eval.yml"
+      - ".github/actions/eval-setup/**"
 
-# Two parallel jobs: test gives the fast pytest signal, eval is the slow gate.
-# The eval is CPU-bound (Ollama), so it stays ~18 min; the split means pytest
-# no longer waits behind it.
+# A newer push supersedes an eval still running on the same branch.
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  eval-sample:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: ./.github/actions/eval-setup
+
+      - name: "eval sample (gate: no failures outside evals/known_failures.json)"
+        run: python -m app.eval --sample --json-out eval-sample.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          python-version: "3.11"
+          name: eval-sample
+          path: eval-sample.json
+          if-no-files-found: ignore
 
-      - name: install CPU-only torch first
-        run: |
-          TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3)
-          pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}"
-
-      - run: pip install -r requirements-lock.txt
-      - run: pip install -r requirements-dev.txt
-
-      - name: run unit + API tests
-        run: python -m pytest tests/ -v
-
-  eval:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: install CPU-only torch first
-        run: |
-          TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3)
-          pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}"
-
-      - run: pip install -r requirements-lock.txt
-
-      - name: start qdrant
-        run: docker run -d -p 6333:6333 qdrant/qdrant@sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad
-
-      - name: start ollama
-        run: |
-          docker run -d -p 11434:11434 --name ollama ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:11434/api/tags > /dev/null; then break; fi
-            sleep 2
-          done
-          curl -sf http://localhost:11434/api/tags > /dev/null || { echo "ollama did not start"; exit 1; }
-          docker exec ollama ollama pull llama3.2:3b
-
-      - name: ingest runbooks
-        run: python -m app.ingest
-
-      - name: run eval harness (regressions break the build)
-        run: python -m app.eval
-      - name: Run held-out set (measurement only, never gates)
-        run: python -m app.eval --golden evals/holdout.json --report-only
+      # Ollama wrote the model cache as root; hand it to the runner user so
+      # the cache post-step can archive it.
+      - name: fix model cache ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" ~/ollama-models

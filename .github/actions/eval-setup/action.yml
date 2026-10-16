@@ -1,0 +1,54 @@
+name: eval-setup
+description: >
+  Python deps (pip-cached), Qdrant, Ollama with llama3.2:3b (model cached
+  across runs), and an ingested index. Shared by the sample and nightly evals.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: pip
+        cache-dependency-path: requirements-lock.txt
+
+    - name: install deps (CPU-only torch first)
+      shell: bash
+      run: |
+        TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3)
+        pip install --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}"
+        pip install -r requirements-lock.txt
+
+    # Embedding + reranker weights (~100 MB): skip the HuggingFace download.
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/huggingface
+        key: hf-minilm-l6-msmarco-v1
+
+    # The 2 GB model: pulled once, then restored from cache (~1 min saved
+    # per run). Keyed on the Ollama image digest and the model name.
+    - uses: actions/cache@v4
+      with:
+        path: ~/ollama-models
+        key: ollama-926d40fd-llama3.2-3b
+
+    - name: start qdrant
+      shell: bash
+      run: docker run -d -p 6333:6333 qdrant/qdrant@sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad
+
+    - name: start ollama
+      shell: bash
+      run: |
+        mkdir -p ~/ollama-models
+        docker run -d -p 11434:11434 -v ~/ollama-models:/root/.ollama --name ollama \
+          ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:11434/api/tags > /dev/null; then break; fi
+          sleep 2
+        done
+        curl -sf http://localhost:11434/api/tags > /dev/null || { echo "ollama did not start"; exit 1; }
+        docker exec ollama ollama pull llama3.2:3b
+
+    - name: ingest runbooks
+      shell: bash
+      run: python -m app.ingest
