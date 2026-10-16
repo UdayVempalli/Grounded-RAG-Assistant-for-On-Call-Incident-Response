@@ -46,7 +46,7 @@ from pathlib import Path
 
 import httpx
 
-from .main import LLM_MODEL, OLLAMA_URL, _is_injection_attempt
+from .main import LLM_MODEL, LLM_SEED, OLLAMA_URL, _is_injection_attempt
 from .main import _generate as _prod_generate
 from .retrieve import retrieve
 
@@ -178,7 +178,7 @@ def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
     prompt = JUDGE_PROMPT.format(context=context, question=question, answer=answer)
     r = httpx.post(f"{OLLAMA_URL}/api/generate",
                    json={"model": JUDGE_MODEL, "prompt": prompt, "stream": False,
-                         "options": {"temperature": 0}},
+                         "options": {"temperature": 0, "seed": LLM_SEED}},
                    timeout=120)
     r.raise_for_status()
     raw = r.json()["response"]
@@ -297,6 +297,25 @@ def evaluate_item(item: dict) -> tuple[dict, list[str]]:
     return results, failures
 
 
+def evaluate_item_with_retry(item: dict) -> tuple[dict, list[str]]:
+    """evaluate_item, re-run once from scratch (new answer, new verdict)
+    when it fails. CPU inference is not bit-for-bit reproducible even at
+    temperature 0 with a fixed seed: in CI, the same code failed different
+    items on consecutive runs. An item counts as failed only if it fails
+    twice; a real regression fails every time, so it is still caught.
+    Safety failures (refusal, injection) are never retried: one unsafe
+    answer is a failure. A pass on retry is marked "_flaky" for the report.
+    """
+    results, failures = evaluate_item(item)
+    failed = {cat for cat, ok in results.items() if not ok}
+    if not failures or failed & SAFETY_CATEGORIES:
+        return results, failures
+    results2, failures2 = evaluate_item(item)
+    if not failures2:
+        results2["_flaky"] = True
+    return results2, failures2
+
+
 def _check_forbidden(item: dict, answer: str, results: dict, failures: list) -> None:
     forbidden = item.get("forbidden_keywords")
     if not forbidden:
@@ -369,14 +388,14 @@ def draft_baseline(outcomes: list[tuple[dict, dict]], failure_text: dict[str, li
 
 
 def _write_step_summary(report: dict, n: int, items_passed: int, new: list, known: list,
-                        fixed: list, label: str) -> None:
+                        fixed: list, label: str, flaky: list = ()) -> None:
     """Markdown summary on the GitHub Actions run page, when running in CI."""
     path = os.getenv("GITHUB_STEP_SUMMARY")
     if not path:
         return
     lines = [f"### Eval: {label}", "",
              f"{items_passed}/{n} items passed · {len(known)} known failures (baselined) · "
-             f"**{len(new)} new failures** · {len(fixed)} fixed", ""]
+             f"**{len(new)} new failures** · {len(fixed)} fixed · {len(flaky)} flaky (passed on retry)", ""]
     for q, cats in new:
         lines.append(f"- ❌ new ({', '.join(cats)}): {q}")
     for q in fixed:
@@ -397,9 +416,12 @@ def main(golden_path: Path | None = None, report_only: bool = False,
         items = sample_items(items)
     baseline = load_baseline(baseline_path) if baseline_path else {}
 
-    outcomes, failures, failure_text = [], [], {}
+    outcomes, failures, failure_text, flaky = [], [], {}, []
     for i, item in enumerate(items):
-        results, item_failures = evaluate_item(item)
+        results, item_failures = evaluate_item_with_retry(item)
+        if results.pop("_flaky", False):
+            flaky.append(item["question"])
+            print(f"[{i}] FLAKY (failed once, passed on retry) {item['question']}")
         outcomes.append((item, results))
         if item_failures:
             failure_text[item["question"]] = item_failures
@@ -411,7 +433,7 @@ def main(golden_path: Path | None = None, report_only: bool = False,
     items_passed = sum(1 for _, r in outcomes if all(r.values()))
     new, known, fixed = gate(outcomes, baseline)
     print(f"\n{items_passed}/{len(items)} evals passed")
-    print(f"known failures (baselined): {len(known)} | NEW failures: {len(new)} | fixed: {len(fixed)}")
+    print(f"known failures (baselined): {len(known)} | NEW failures: {len(new)} | fixed: {len(fixed)} | flaky (passed on retry): {len(flaky)}")
     print(f"\n{'category':<10} {'passed':>9} {'rate':>7}")
     for cat, r in report.items():
         print(f"{cat:<10} {r['passed']:>4}/{r['total']:<4} {r['rate']:>7.1%}")
@@ -423,10 +445,10 @@ def main(golden_path: Path | None = None, report_only: bool = False,
         print(f"FIXED (remove from {baseline_path.name if baseline_path else 'baseline'}): {q}")
 
     label = path.name + (" (sample)" if sample else "")
-    _write_step_summary(report, len(items), items_passed, new, known, fixed, label)
+    _write_step_summary(report, len(items), items_passed, new, known, fixed, label, flaky)
     if json_out:
         json_out.write_text(json.dumps({"set": label, "items": len(items), "items_passed": items_passed,
-                                        "new_failures": new, "known_failures": known, "fixed": fixed,
+                                        "new_failures": new, "known_failures": known, "fixed": fixed, "flaky": flaky,
                                         "categories": report, "failures": failures}, indent=2))
     if write_baseline:
         drafted = draft_baseline(outcomes, failure_text)

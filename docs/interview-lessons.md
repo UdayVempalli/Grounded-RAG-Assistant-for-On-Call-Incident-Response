@@ -208,6 +208,11 @@ challenge, what happened, the fix, and the takeaway.
 - Fix: ingest read runbooks with read_text() and no encoding; on Windows that is cp1252, so every em dash was garbled in the local index. Explicit UTF-8 everywhere. CI (Linux, UTF-8) never showed it.
 - Lesson: always pass encoding="utf-8". Platform defaults make bugs that only appear on one machine.
 
+## 42. Temperature 0 is not deterministic
+- Challenge: the first CI run of the baseline gate failed 4 new items; a re-run of the same code failed 2, and two of the original four passed. The model's answers changed between runs even at temperature 0, and multi-threaded CPU inference is not bit-for-bit reproducible.
+- Fix: a fixed seed on every Ollama call, and retry-once in the eval: an item counts as failed only if it fails twice from scratch (safety categories are never retried). Items that pass on retry are reported as flaky. The two items that failed in both CI runs were checked against the runbooks and listed as judge noise.
+- Lesson: before trusting an LLM gate, run it twice on the same code. If the results differ, the gate must measure consistent behavior, not one sample.
+
 ## Deferred items (done Oct 15)
 - Feedback endpoint: thumbs down posts to Slack (no-op if unset, never fail the request); feedback feeds the golden set.
 - SLOs from measured data: p95 < 60s (measured 41.5s), hit rate >= 95% (measured 100%), refusal 100%. Targets from data, not aspiration.

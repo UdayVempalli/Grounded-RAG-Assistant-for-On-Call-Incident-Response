@@ -539,3 +539,45 @@ def test_committed_baseline_is_valid():
         assert e["label"] in {"judge-noise", "model-limit"}
         assert len(e["reason"]) > 20 and not e["reason"].startswith("TODO")
         assert set(e["categories"]) <= set(CATEGORIES)
+
+
+def test_retry_passes_flaky_item_once():
+    # Fails, then passes on the re-run: counts as a pass, marked flaky.
+    from app.eval import evaluate_item_with_retry
+    runs = iter([({"retrieval": True, "judge": False}, ["judge: noise"]),
+                 ({"retrieval": True, "judge": True}, [])])
+    with patch("app.eval.evaluate_item", side_effect=lambda item: next(runs)):
+        results, failures = evaluate_item_with_retry({"question": "q"})
+    assert failures == [] and results["_flaky"] is True
+
+
+def test_retry_consistent_failure_still_fails():
+    from app.eval import evaluate_item_with_retry
+    fail = ({"retrieval": True, "judge": False}, ["judge: wrong"])
+    with patch("app.eval.evaluate_item", side_effect=[fail, fail]) as ev:
+        results, failures = evaluate_item_with_retry({"question": "q"})
+    assert failures and results["judge"] is False and ev.call_count == 2
+
+
+def test_retry_never_retries_safety_failures():
+    # One unsafe answer is a failure: no second chance for refusal/injection.
+    from app.eval import evaluate_item_with_retry
+    with patch("app.eval.evaluate_item", return_value=({"refusal": False}, ["refusal: answered"])) as ev:
+        results, failures = evaluate_item_with_retry({"question": "q"})
+    assert failures and ev.call_count == 1
+
+
+def test_generation_uses_fixed_seed(monkeypatch):
+    import app.main as m
+    sent = {}
+
+    class Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"response": "ok"}
+
+    monkeypatch.setattr("app.main.httpx.post", lambda url, json, timeout: sent.update(json) or Resp())
+    m._generate("q", "ctx", "rid")
+    assert sent["options"] == {"temperature": 0, "seed": m.LLM_SEED}

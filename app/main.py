@@ -44,6 +44,10 @@ from .retrieve import retrieve
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")
+# Fixed sampling seed (with temperature 0) so repeated runs give the same
+# answer where the backend allows it. Multi-threaded CPU inference is still
+# not bit-for-bit reproducible, which is why the eval retries a failure once.
+LLM_SEED = int(os.getenv("LLM_SEED", "42"))
 
 MAX_QUESTION_CHARS = 2000
 REFUSAL_TEXT = "I don't have a runbook for that."
@@ -327,7 +331,7 @@ def _generate(question: str, context: str, request_id: str) -> dict:
         "model": LLM_MODEL,
         "prompt": PROMPT.format(context=context, question=question),
         "stream": False,
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "seed": LLM_SEED},
     }
     for attempt in range(3):
         try:
@@ -409,7 +413,7 @@ def _generate_stream(question: str, context: str, request_id: str):
         "model": LLM_MODEL,
         "prompt": PROMPT.format(context=context, question=question),
         "stream": True,
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "seed": LLM_SEED},
     }
     try:
         with httpx.stream("POST", f"{OLLAMA_URL}/api/generate", json=payload, timeout=httpx.Timeout(120.0, connect=5.0)) as resp:
