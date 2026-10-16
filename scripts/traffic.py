@@ -1,4 +1,8 @@
-# Fire 50 /ask requests to populate the Grafana dashboard.
+"""Fire N /ask requests to populate the Grafana dashboard.
+
+Run:  python scripts/traffic.py            (API_URL defaults to http://localhost:8000)
+      API_URL=http://staging:8000 N=200 python scripts/traffic.py
+"""
 import json
 import os
 import time
@@ -10,7 +14,7 @@ def _load_api_key() -> str:
     if key:
         return key
     try:
-        with open(".env") as f:
+        with open(".env", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line.startswith("RUNBOOKQA_API_KEY="):
@@ -21,6 +25,7 @@ def _load_api_key() -> str:
 
 
 API_KEY = _load_api_key()
+API_URL = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
 
 QUESTIONS = [
     "A pod is stuck in CrashLoopBackOff. What are the first diagnostic steps?",
@@ -35,13 +40,13 @@ QUESTIONS = [
     "What is our PTO policy?",
 ]
 
-N = 50
+N = int(os.environ.get("N", "50"))
 errors = 0
 for i in range(N):
     q = QUESTIONS[i % len(QUESTIONS)]
     body = json.dumps({"question": q}).encode()
     req = urllib.request.Request(
-        "http://localhost:8000/ask",
+        f"{API_URL}/ask",
         data=body,
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"},
     )
