@@ -11,6 +11,8 @@ services:
     build: .
     volumes:
       - ./data/runbooks:/code/data/runbooks:ro
+      # Feedback outlives the container; gitignored on the host.
+      - ./data/feedback:/code/data/feedback
     env_file:
       - path: .env
         required: false
@@ -20,6 +22,8 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - OLLAMA_URL=http://host.docker.internal:11434
       - RUNBOOKQA_API_KEY=${RUNBOOKQA_API_KEY:?set RUNBOOKQA_API_KEY in .env}
+      # Optional: unset leaves POST /ingest disabled (503).
+      - RUNBOOKQA_ADMIN_KEY=${RUNBOOKQA_ADMIN_KEY:-}
     depends_on:
       - qdrant
 
@@ -30,10 +34,6 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --rule.file=/etc/prometheus/alerts.yml
 
   grafana:
     image: grafana/grafana@sha256:b28bae15e219c998fb0e0424ed724930cc61b1f61fb404d47c862f9a23f9e572

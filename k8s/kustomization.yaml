@@ -1,10 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # secret.yaml is NOT listed: create it with
-# kubectl create secret generic runbookqa-secret --from-literal=RUNBOOKQA_API_KEY=<key>
+#   kubectl create secret generic runbookqa-secret \
+#     --from-literal=RUNBOOKQA_API_KEY=<key> --from-literal=RUNBOOKQA_ADMIN_KEY=<admin-key>
 # (the file is a template; never deploy the placeholder key)
 resources:
   - deployment.yaml
   - service.yaml
   - qdrant.yaml
   - ollama.yaml
+# One place to set the release tag (a git SHA, never latest):
+#   kustomize edit set image runbookqa-api=runbookqa-api:$(git rev-parse --short HEAD)
+images:
+  - name: runbookqa-api
+    newTag: "792b07d"

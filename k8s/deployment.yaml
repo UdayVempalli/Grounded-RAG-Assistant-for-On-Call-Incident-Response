@@ -16,11 +16,15 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000   # matches USER 1000 in the Dockerfile
+        runAsGroup: 1000
+        fsGroup: 1000     # makes the feedback PVC writable by the app user
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: api
-          image: runbookqa-api:8af33c2  # build with: docker build -t runbookqa-api:8af33c2 .
+          # Tag is set in kustomization.yaml (images:), one place per release.
+          image: runbookqa-api
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
@@ -34,6 +38,14 @@ spec:
                 secretKeyRef:
                   name: runbookqa-secret
                   key: RUNBOOKQA_API_KEY
+            - name: RUNBOOKQA_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: runbookqa-secret
+                  key: RUNBOOKQA_ADMIN_KEY
+                  optional: true   # unset -> /ingest disabled (503)
+            - name: RUNBOOKQA_FEEDBACK_PATH
+              value: /code/data/feedback/feedback.jsonl
             - name: RUNBOOKQA_RATE_LIMIT
               value: "10"
             - name: RUNBOOKQA_RATE_WINDOW_S
@@ -45,11 +57,17 @@ spec:
             limits:
               cpu: "2"
               memory: "4Gi"
-          # readOnlyRootFilesystem skipped: the API writes feedback.jsonl to /code/data
+          # Read-only root: the only writes go to the feedback PVC and /tmp.
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          volumeMounts:
+            - name: feedback
+              mountPath: /code/data/feedback
+            - name: tmp
+              mountPath: /tmp
           startupProbe:
             httpGet:
               path: /health
@@ -68,3 +86,22 @@ spec:
               port: 8000
             initialDelaySeconds: 30
             periodSeconds: 10
+      volumes:
+        - name: feedback
+          persistentVolumeClaim:
+            claimName: runbookqa-feedback
+        - name: tmp
+          emptyDir: {}
+---
+# Feedback survives pod restarts. ReadWriteOnce matches replicas: 1; going
+# multi-replica means moving feedback to a shared store (see README, Future work).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: runbookqa-feedback
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

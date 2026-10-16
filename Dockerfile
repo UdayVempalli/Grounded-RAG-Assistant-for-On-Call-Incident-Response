@@ -4,14 +4,18 @@ ENV HF_HOME=/opt/hf-cache
 COPY requirements-lock.txt .
 # CPU-only torch: the API embeds on CPU; the LLM runs in Ollama.
 # Install torch from the CPU index FIRST - PyPI's torch wheel pulls ~3GB of CUDA libs.
-RUN TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3) && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}" && pip install --no-cache-dir -r requirements-lock.txt
+# setuptools/wheel are install-time only: removing them drops the HIGH CVEs
+# Trivy finds in setuptools' vendored copies (jaraco.context, wheel).
+RUN TORCH_VER=$(grep '^torch==' requirements-lock.txt | cut -d= -f3) && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VER}" && pip install --no-cache-dir -r requirements-lock.txt && pip uninstall -y setuptools wheel
 COPY app/ ./app/
 COPY data/ ./data/
 COPY evals/ ./evals/
-RUN useradd -m appuser && chown -R appuser:appuser /code && mkdir -p /opt/hf-cache && chown appuser:appuser /opt/hf-cache
-USER appuser
+# Fixed numeric UID: Kubernetes' runAsNonRoot can only verify a numeric
+# user; with a name (USER appuser) the kubelet refuses to start the pod.
+RUN useradd -m -u 1000 appuser && mkdir -p /code/data/feedback /opt/hf-cache && chown -R 1000:1000 /code /opt/hf-cache
+USER 1000
 # Bake the embedding model into the image: the first /ask must not need a
-# HuggingFace download (or internet). Runs as appuser into HF_HOME.
+# HuggingFace download (or internet). Runs as UID 1000 into HF_HOME.
 RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; SentenceTransformer('all-MiniLM-L6-v2'); CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
 # Models are baked into the image above: never hit the Hub at runtime,
 # so there is no cold-start download and no unauthenticated Hub request.

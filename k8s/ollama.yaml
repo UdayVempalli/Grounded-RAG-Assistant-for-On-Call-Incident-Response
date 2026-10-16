@@ -25,14 +25,37 @@ spec:
       labels:
         app: ollama
     spec:
+      # Verified locally: runs as UID 1000 with a read-only root when HOME and
+      # the model store point at writable volumes (OLLAMA_MODELS on the PVC).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ollama
-          image: ollama/ollama:latest  # TODO: pin digest after first pull (docker images --digests)
+          image: ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6  # same digest as CI
           ports:
             - containerPort: 11434
+          env:
+            - name: OLLAMA_MODELS
+              value: /models
+            - name: HOME
+              value: /home/ollama
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: ollama-data
-              mountPath: /root/.ollama
+              mountPath: /models
+            - name: home
+              mountPath: /home/ollama
+            - name: tmp
+              mountPath: /tmp
           lifecycle:
             postStart:
               exec:
@@ -53,6 +76,10 @@ spec:
         - name: ollama-data
           persistentVolumeClaim:
             claimName: ollama-data
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

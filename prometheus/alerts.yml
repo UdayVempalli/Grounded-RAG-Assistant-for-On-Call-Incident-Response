@@ -32,6 +32,13 @@ groups:
         annotations:
           summary: "Refusal ratio above 50% (corpus gap or threshold miscalibration)"
 
+      - alert: OllamaCircuitOpen
+        expr: increase(runbookqa_breaker_open_total[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ollama circuit breaker is open: /ask is failing fast with 503 (LLM backend down)"
+
       - alert: TargetDown
         expr: up == 0
         for: 1m

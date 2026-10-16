@@ -1,6 +1,10 @@
 global:
   scrape_interval: 15s
 
+# Alert rules are loaded here (Prometheus has no --rule.file flag).
+rule_files:
+  - /etc/prometheus/alerts.yml
+
 scrape_configs:
   - job_name: "runbookqa-api"
     static_configs:

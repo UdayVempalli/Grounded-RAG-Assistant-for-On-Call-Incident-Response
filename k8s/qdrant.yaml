@@ -25,14 +25,32 @@ spec:
       labels:
         app: qdrant
     spec:
+      # Verified locally: this image runs as UID 1000 with a read-only root
+      # (storage on the PVC, snapshots and /tmp on emptyDirs).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: qdrant
           image: qdrant/qdrant@sha256:b7b0444c4c351c970b98e90a6f89c2ee4287c65b44e52b4cb503fa5b2aa927ad
           ports:
             - containerPort: 6333
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: qdrant-data
               mountPath: /qdrant/storage
+            - name: snapshots
+              mountPath: /qdrant/snapshots
+            - name: tmp
+              mountPath: /tmp
           livenessProbe:
             httpGet:
               path: /healthz
@@ -56,6 +74,10 @@ spec:
         - name: qdrant-data
           persistentVolumeClaim:
             claimName: qdrant-data
+        - name: snapshots
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
