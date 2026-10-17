@@ -1,15 +1,17 @@
-# RunbookQA
+# Grounded RAG Assistant for On-Call Incident Response
 
 **Grounded answers for on-call engineers.** Ask a question in plain English
-("a node is reporting DiskPressure, what do I check?") and RunbookQA answers
+("a node is reporting DiskPressure, what do I check?") and the assistant answers
 using only your team's runbooks, cites the runbook each step came from, and
 refuses when no runbook covers the question instead of making something up.
 
 It is a retrieval-augmented generation (RAG) service built to production
-habits: an eval suite that gates CI, hybrid retrieval, refusal in two layers,
+habits: an eval suite that gates CI, hybrid retrieval, refusal in three layers,
 auth and rate limiting, hardened containers, Kubernetes manifests,
 Prometheus metrics and alerts, and a Grafana dashboard. Everything runs
 locally on CPU: Ollama serves the LLM, and no API keys are needed.
+
+Internally the service is called RunbookQA (metric names, environment variables, Docker and Kubernetes resources).
 
 ---
 
