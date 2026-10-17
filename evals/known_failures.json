@@ -8,6 +8,14 @@
     "reason": "Answer states runaway logging is the most common cause, which is disk-pressure.md step 2 (with a 'Runway' typo)."
   },
   {
+    "question": "How do I tell if a pod is in ImagePullBackOff?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Failed the judge in both nightly CI runs (identical results). The answer (kubectl get pods shows the ImagePullBackOff status) is k8s-image-pull.md's symptom line, lightly embellished. Its verdict also flipped across the sample runs."
+  },
+  {
     "question": "What does it mean if a pod has zero restarts and never reaches Running?",
     "categories": [
       "judge"
@@ -46,6 +54,14 @@
     ],
     "label": "judge-noise",
     "reason": "Near-verbatim deploy-config.md step 3 (kubectl describe configmap, missing key)."
+  },
+  {
+    "question": "How do I tell if a pod is stuck in Pending?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Failed the judge in both nightly CI runs (identical results). The answer pastes k8s-pending.md and then states its symptom line verbatim ('kubectl get pods shows it never gets scheduled'); every claim is in the runbook."
   },
   {
     "question": "What does '0/3 nodes are available' mean?",
@@ -96,6 +112,14 @@
     "reason": "Failed the judge in both CI runs (Linux) though it passes locally. The answer (rate limit exceeded; honor Retry-After, back off, never retry immediately) paraphrases rate-limit.md."
   },
   {
+    "question": "How do I read the Retry-After header?",
+    "categories": [
+      "judge"
+    ],
+    "label": "judge-noise",
+    "reason": "Failed the judge in both nightly CI runs (identical results). The answer is rate-limit.md step 1 verbatim: curl -i https://api.example.com/endpoint, then read the Retry-After header."
+  },
+  {
     "question": "A node is reporting DiskPressure. What should I check before evicting pods?",
     "categories": [
       "judge"
@@ -136,6 +160,14 @@
     "reason": "Gives the diagnosis step (check lag < 5s) instead of the mitigation asked for (keep traffic read-only on the lagging replica)."
   },
   {
+    "question": "How do I check if connection pooling is causing timeouts?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Failed the judge in both nightly CI runs (identical results). Correct command (netstat -an | grep ESTABLISHED | wc -l) but cited to db-connection-pool.md; it comes from api-timeout.md step 3. Wrong citation."
+  },
+  {
     "question": "How do I diff a ConfigMap against the last known good version?",
     "categories": [
       "judge"
@@ -166,6 +198,14 @@
     ],
     "label": "model-limit",
     "reason": "Pastes the retrieved context back, then invents a kubectl jsonpath command not in the runbook."
+  },
+  {
+    "question": "Should I restart a pod with a memory leak?",
+    "categories": [
+      "judge"
+    ],
+    "label": "model-limit",
+    "reason": "Failed the judge in both nightly CI runs (identical results). Invents a condition ('only if the pod is OOMKilled'); memory-leak.md says restart as a stopgap that buys time, not a fix. A side effect of the conditional-answer prompt rule."
   },
   {
     "question": "Should I raise the rate limit?",

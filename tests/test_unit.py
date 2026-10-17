@@ -580,4 +580,15 @@ def test_generation_uses_fixed_seed(monkeypatch):
 
     monkeypatch.setattr("app.main.httpx.post", lambda url, json, timeout: sent.update(json) or Resp())
     m._generate("q", "ctx", "rid")
-    assert sent["options"] == {"temperature": 0, "seed": m.LLM_SEED}
+    assert sent["options"] == {"temperature": 0, "seed": m.LLM_SEED, "num_predict": m.LLM_MAX_TOKENS}
+
+
+def test_ollama_error_is_a_failed_item_not_a_crash():
+    # A timed-out generation is recorded for that item (and retried once);
+    # the run continues instead of aborting.
+    import httpx as _httpx
+    from app.eval import evaluate_item_with_retry
+    with patch("app.eval.evaluate_item", side_effect=_httpx.ReadTimeout("timed out")) as ev:
+        results, failures = evaluate_item_with_retry({"question": "q"})
+    assert results == {"generation": False}
+    assert failures[0].startswith("generation") and ev.call_count == 2

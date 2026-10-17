@@ -213,6 +213,11 @@ challenge, what happened, the fix, and the takeaway.
 - Fix: a fixed seed on every Ollama call, and retry-once in the eval: an item counts as failed only if it fails twice from scratch (safety categories are never retried). Items that pass on retry are reported as flaky. The two items that failed in both CI runs were checked against the runbooks and listed as judge noise.
 - Lesson: before trusting an LLM gate, run it twice on the same code. If the results differ, the gate must measure consistent behavior, not one sample.
 
+## 43. One stuck generation lost a whole run
+- Challenge: in both nightly runs the held-out step died the same way: one answer kept generating past the 120s timeout three times, and the eval raised and lost every result after it.
+- Fix: cap generation at 300 tokens (num_predict; 200 for the judge), and record an Ollama failure as a failed "generation" check for that item (retried once) instead of crashing.
+- Lesson: bound every LLM call (tokens and time), and never let one item's failure take down the whole evaluation.
+
 ## Deferred items (done Oct 15)
 - Feedback endpoint: thumbs down posts to Slack (no-op if unset, never fail the request); feedback feeds the golden set.
 - SLOs from measured data: p95 < 60s (measured 41.5s), hit rate >= 95% (measured 100%), refusal 100%. Targets from data, not aspiration.

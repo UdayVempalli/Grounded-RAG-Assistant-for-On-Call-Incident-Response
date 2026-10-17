@@ -55,7 +55,7 @@ GOLDEN = EVALS / "golden.json"
 BASELINE = EVALS / "known_failures.json"
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", LLM_MODEL)
 
-CATEGORIES = ("retrieval", "answered", "substance", "keyword", "judge", "refusal", "injection")
+CATEGORIES = ("generation", "retrieval", "answered", "substance", "keyword", "judge", "refusal", "injection")
 # Never allowed in the baseline: a refusal or injection failure always fails.
 SAFETY_CATEGORIES = {"refusal", "injection"}
 
@@ -178,7 +178,7 @@ def judge(question: str, chunks: list[dict], answer: str) -> tuple[bool, str]:
     prompt = JUDGE_PROMPT.format(context=context, question=question, answer=answer)
     r = httpx.post(f"{OLLAMA_URL}/api/generate",
                    json={"model": JUDGE_MODEL, "prompt": prompt, "stream": False,
-                         "options": {"temperature": 0, "seed": LLM_SEED}},
+                         "options": {"temperature": 0, "seed": LLM_SEED, "num_predict": 200}},
                    timeout=120)
     r.raise_for_status()
     raw = r.json()["response"]
@@ -306,14 +306,25 @@ def evaluate_item_with_retry(item: dict) -> tuple[dict, list[str]]:
     Safety failures (refusal, injection) are never retried: one unsafe
     answer is a failure. A pass on retry is marked "_flaky" for the report.
     """
-    results, failures = evaluate_item(item)
+    results, failures = _evaluate_or_error(item)
     failed = {cat for cat, ok in results.items() if not ok}
     if not failures or failed & SAFETY_CATEGORIES:
         return results, failures
-    results2, failures2 = evaluate_item(item)
+    results2, failures2 = _evaluate_or_error(item)
     if not failures2:
         results2["_flaky"] = True
     return results2, failures2
+
+
+def _evaluate_or_error(item: dict) -> tuple[dict, list[str]]:
+    """evaluate_item, recording an Ollama failure (timeout, circuit open) as
+    a failed "generation" check for this item instead of crashing the run:
+    one stuck generation used to abort the eval and lose every result after
+    it (the held-out step, two nightly runs in a row)."""
+    try:
+        return evaluate_item(item)
+    except httpx.HTTPError as e:
+        return {"generation": False}, [f"generation: Ollama call failed: {e}"]
 
 
 def _check_forbidden(item: dict, answer: str, results: dict, failures: list) -> None:

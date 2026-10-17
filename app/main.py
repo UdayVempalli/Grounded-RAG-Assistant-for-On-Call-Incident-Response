@@ -48,6 +48,10 @@ LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")
 # answer where the backend allows it. Multi-threaded CPU inference is still
 # not bit-for-bit reproducible, which is why the eval retries a failure once.
 LLM_SEED = int(os.getenv("LLM_SEED", "42"))
+# Cap on answer length. Runbook answers are a few steps; without a cap a
+# rambling generation on CPU (~3 tokens/s) ran past the 120s timeout three
+# times in a row in CI. Also keeps /ask latency bounded.
+LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "300"))
 
 MAX_QUESTION_CHARS = 2000
 REFUSAL_TEXT = "I don't have a runbook for that."
@@ -331,7 +335,7 @@ def _generate(question: str, context: str, request_id: str) -> dict:
         "model": LLM_MODEL,
         "prompt": PROMPT.format(context=context, question=question),
         "stream": False,
-        "options": {"temperature": 0, "seed": LLM_SEED},
+        "options": {"temperature": 0, "seed": LLM_SEED, "num_predict": LLM_MAX_TOKENS},
     }
     for attempt in range(3):
         try:
@@ -413,7 +417,7 @@ def _generate_stream(question: str, context: str, request_id: str):
         "model": LLM_MODEL,
         "prompt": PROMPT.format(context=context, question=question),
         "stream": True,
-        "options": {"temperature": 0, "seed": LLM_SEED},
+        "options": {"temperature": 0, "seed": LLM_SEED, "num_predict": LLM_MAX_TOKENS},
     }
     try:
         with httpx.stream("POST", f"{OLLAMA_URL}/api/generate", json=payload, timeout=httpx.Timeout(120.0, connect=5.0)) as resp:

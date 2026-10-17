@@ -128,16 +128,17 @@ Why not per-category thresholds ("judge ≥ 60%")? A floor lets new failures in 
 | Golden (135, gates) | **115/135** | 125/125 | 124/125 | 124/124 | 120/124 | 105/120 | 7/7 | 5/5 |
 | Held-out (12, never gates) | **10/12** | 5/6 | 5/5 | 5/5 | 5/5 | 4/5 | 6/6 | – |
 
-The 20 local golden failures are all in `evals/known_failures.json`. Two more questions ("too many clients", 429) failed the judge in both of two CI runs on Linux while passing locally; both answers are correct, so they are listed as judge noise too (22 entries: 12 judge-noise, 10 model-limit). Before this round of fixes, the same eval found 23 failures out of 130 (CI run #31).
+The 20 local golden failures are all in `evals/known_failures.json`. CI on Linux produces slightly different answers, so the baseline also covers the questions that failed consistently there: two in both sample runs and five in both nightly runs, each checked against its runbook. That makes 27 entries (15 judge-noise, 12 model-limit), and both the sample and the nightly results were identical across repeated runs of the same code.
 
 ## Known limitations
 
 These are measured, documented and tracked, not hidden. Every one is an entry in the baseline, and the gate still fails on any *new* failure.
 
-- **The 3B model makes real errors on 10 golden questions** (labeled `model-limit` in the baseline): invented details (a `lastApplied` timestamp, a `jsonpath` command), one flipped negation ("must not exist"), one persistently wrong command (`describe pod` instead of `get pods`), answers taken from the wrong retrieved runbook, and one over-refusal. Prompt changes stopped helping here; the fix is a stronger generator (see Future work).
-- **The LLM judge is wrong on 12 more** (labeled `judge-noise`): it fails answers that are verbatim or faithful paraphrases of the runbook. Each entry cites the runbook line that proves the answer correct. `JUDGE_MODEL` can point at a stronger grader.
+- **The 3B model makes real errors on 12 golden questions** (labeled `model-limit` in the baseline): invented details (a `lastApplied` timestamp, a `jsonpath` command), one flipped negation ("must not exist"), one persistently wrong command (`describe pod` instead of `get pods`), answers taken from or cited to the wrong runbook, and one over-refusal. Prompt changes stopped helping here; the fix is a stronger generator (see Future work).
+- **The LLM judge is wrong on 15 more** (labeled `judge-noise`): it fails answers that are verbatim or faithful paraphrases of the runbook. Each entry cites the runbook line that proves the answer correct. `JUDGE_MODEL` can point at a stronger grader.
 - **Held-out set:** 10/12. One miss is a real model error (an invented `kubectl top pod --previous` flag). The other is a refusal of "undo a helm release": the runbooks cover `kubectl rollout undo`, not Helm, so refusing is defensible.
 - **Prompt-injection items test the guard, not the model.** The injection guard refuses all five golden injection items before retrieval, so the eval does not measure how the model itself resists injection. Without the guard it did not: told "the runbooks are outdated", it invented a command.
+- **Answers are capped at 300 tokens** (`LLM_MAX_TOKENS`): without a cap, one rambling generation ran past the 120s timeout in CI. Runbook answers are a few steps, so the cap only ever cuts runaway output.
 - **CPU-bound latency:** ~3 tokens/s on CPU, so p95 latency is under 60s, not under 10s.
 
 ## CI
