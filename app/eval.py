@@ -420,7 +420,8 @@ def _write_step_summary(report: dict, n: int, items_passed: int, new: list, know
 
 def main(golden_path: Path | None = None, report_only: bool = False,
          sample: bool = False, json_out: Path | None = None,
-         baseline_path: Path | None = BASELINE, write_baseline: Path | None = None) -> None:
+         baseline_path: Path | None = BASELINE, write_baseline: Path | None = None,
+         gate_categories: set[str] | None = None) -> None:
     path = golden_path or GOLDEN
     items = json.loads(path.read_text(encoding="utf-8"))
     if sample:
@@ -466,11 +467,33 @@ def main(golden_path: Path | None = None, report_only: bool = False,
         write_baseline.write_text(json.dumps(drafted, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         print(f"\ndrafted {len(drafted)} baseline entries -> {write_baseline} (review every reason before committing)")
 
-    if new and not report_only:
-        print(f"\nGATE FAILED: {len(new)} new failure(s) not in the baseline:")
-        for q, cats in new:
+    gating, reported = split_new_failures(new, gate_categories)
+    if reported:
+        print(f"\nNEW but not gating on this run ({len(reported)}; checks outside --gate-categories):")
+        for q, cats in reported:
+            print(f"  - ({', '.join(cats)}) {q}")
+    if gating and not report_only:
+        print(f"\nGATE FAILED: {len(gating)} new failure(s) not in the baseline:")
+        for q, cats in gating:
             print(f"  - ({', '.join(cats)}) {q}")
         sys.exit(1)
+
+
+def split_new_failures(new: list, gate_categories: set[str] | None) -> tuple[list, list]:
+    """Split new failures into (gating, report-only).
+
+    gate_categories None gates on every check (the push gate). The nightly
+    full-set run gates only on checks a runner's CPU cannot flip: safety,
+    infrastructure and retrieval. On GitHub's mixed runner hardware the 3B
+    model writes slightly different answers, so judge/keyword verdicts on
+    borderline items change with the machine (same code, different CPU:
+    0 new failures one night, 4 the next). Those are still reported.
+    """
+    if gate_categories is None:
+        return list(new), []
+    gating = [(q, cats) for q, cats in new if set(cats) & gate_categories]
+    reported = [(q, cats) for q, cats in new if not set(cats) & gate_categories]
+    return gating, reported
 
 
 if __name__ == "__main__":
@@ -484,6 +507,14 @@ if __name__ == "__main__":
     parser.add_argument("--baseline", type=Path, default=BASELINE, help="known-failures file (default: evals/known_failures.json)")
     parser.add_argument("--no-baseline", action="store_true", help="strict: every failure is new")
     parser.add_argument("--write-baseline", type=Path, help="draft a baseline from this run's failures (review before committing)")
+    parser.add_argument("--gate-categories", help="comma-separated checks whose new failures fail the run (default: all); others are reported only")
     args = parser.parse_args()
+    gate_cats = None
+    if args.gate_categories:
+        gate_cats = {c.strip() for c in args.gate_categories.split(",") if c.strip()}
+        unknown = gate_cats - set(CATEGORIES)
+        if unknown:
+            parser.error(f"unknown --gate-categories: {sorted(unknown)}")
     main(golden_path=args.golden, report_only=args.report_only, sample=args.sample, json_out=args.json_out,
-         baseline_path=None if args.no_baseline else args.baseline, write_baseline=args.write_baseline)
+         baseline_path=None if args.no_baseline else args.baseline, write_baseline=args.write_baseline,
+         gate_categories=gate_cats)

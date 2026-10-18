@@ -592,3 +592,13 @@ def test_ollama_error_is_a_failed_item_not_a_crash():
         results, failures = evaluate_item_with_retry({"question": "q"})
     assert results == {"generation": False}
     assert failures[0].startswith("generation") and ev.call_count == 2
+
+
+def test_split_new_failures_gates_only_selected_checks():
+    from app.eval import split_new_failures
+    new = [("a", ["judge"]), ("b", ["retrieval"]), ("c", ["keyword", "refusal"])]
+    gating, reported = split_new_failures(new, {"retrieval", "refusal", "injection", "generation"})
+    assert gating == [("b", ["retrieval"]), ("c", ["keyword", "refusal"])]
+    assert reported == [("a", ["judge"])]
+    # Default (push gate): every new failure gates.
+    assert split_new_failures(new, None) == (new, [])

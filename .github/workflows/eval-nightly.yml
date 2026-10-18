@@ -16,8 +16,10 @@ jobs:
 
       - uses: ./.github/actions/eval-setup
 
-      - name: "full golden set (gate: no failures outside evals/known_failures.json)"
-        run: python -m app.eval --json-out eval-golden.json
+      - name: "full golden set (gate: safety, infrastructure, retrieval)"
+        # Gates only on checks a runner CPU cannot flip (safety, infrastructure,
+        # retrieval); judge/keyword changes are reported in the summary.
+        run: python -m app.eval --gate-categories retrieval,refusal,injection,generation --json-out eval-golden.json
 
       # Runs even when the golden gate fails: the held-out number is the
       # honest one and must be reported every night.

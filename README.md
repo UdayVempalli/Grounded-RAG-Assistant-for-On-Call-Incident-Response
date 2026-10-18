@@ -445,7 +445,7 @@ rate limiting, the circuit breaker, streaming, feedback, and the eval gate's bas
 |---|---|---|
 | `ci.yml` | every push and PR | pytest (unit + API, all dependencies mocked) · `pip-audit` on the lock file · Trivy scans for secrets and Dockerfile/k8s misconfiguration · image build plus a Trivy scan for fixable HIGH/CRITICAL CVEs |
 | `eval.yml` | push or PR touching `app/`, `evals/`, `data/runbooks/` or dependency files | Sample eval, gated on "no failures outside the baseline". A newer push cancels a run still in progress. |
-| `eval-nightly.yml` | nightly (06:00 UTC) and on demand | Full golden set (gated on the baseline) plus the held-out set (always runs, reports only). A summary of new, known and fixed failures appears on the run page and as JSON artifacts. |
+| `eval-nightly.yml` | nightly (06:00 UTC) and on demand | Full golden set plus the held-out set (always runs, reports only). The nightly run fails only on new safety, infrastructure or retrieval failures; new judge/keyword failures are listed in the summary but do not fail it, because GitHub's mixed runner CPUs make the 3B model's wording vary (same code: 0 new failures one night, 4 the next). A summary of new, known and fixed failures appears on the run page and as JSON artifacts. |
 
 ```mermaid
 flowchart LR

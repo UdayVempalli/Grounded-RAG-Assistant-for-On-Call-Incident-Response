@@ -218,6 +218,11 @@ challenge, what happened, the fix, and the takeaway.
 - Fix: cap generation at 300 tokens (num_predict; 200 for the judge), and record an Ollama failure as a failed "generation" check for that item (retried once) instead of crashing.
 - Lesson: bound every LLM call (tokens and time), and never let one item's failure take down the whole evaluation.
 
+## 44. Different hardware, different answers
+- Challenge: with no code change (a README edit), the nightly run went from 0 new failures to 4, and from 48 to 20 minutes. GitHub had assigned a faster CPU, and different floating-point hardware made the 3B model word some answers differently. A fixed seed and retry handle run-to-run variation on one machine, not across machines.
+- Fix: the push gate stays strict on every check. The nightly full-set run gates only on checks the hardware cannot flip (refusal, injection, infrastructure errors, retrieval) and reports judge/keyword changes in its summary.
+- Lesson: decide what a gate is allowed to fail on. A gate that goes red when the runner changes trains everyone to ignore red.
+
 ## Deferred items (done Oct 15)
 - Feedback endpoint: thumbs down posts to Slack (no-op if unset, never fail the request); feedback feeds the golden set.
 - SLOs from measured data: p95 < 60s (measured 41.5s), hit rate >= 95% (measured 100%), refusal 100%. Targets from data, not aspiration.
